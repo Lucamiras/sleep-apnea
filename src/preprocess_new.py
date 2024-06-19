@@ -18,9 +18,9 @@ class Preprocessor:
         os.makedirs(os.path.join(self.project_dir, 'data', 'downloads', 'edfs'), exist_ok=True)
         os.makedirs(os.path.join(self.project_dir, 'data', 'downloads', 'rmls'), exist_ok=True)
         os.makedirs(os.path.join(self.project_dir, 'data', 'processed', 'parquet'), exist_ok=True)
-        os.makedirs(os.path.join(self.project_dir, 'data', 'downloads', 'audio'), exist_ok=True)
-        os.makedirs(os.path.join(self.project_dir, 'data', 'downloads', 'spectrogram'), exist_ok=True)
-        
+        os.makedirs(os.path.join(self.project_dir, 'data', 'processed', 'audio'), exist_ok=True)
+        os.makedirs(os.path.join(self.project_dir, 'data', 'processed', 'spectrogram'), exist_ok=True)
+
     def _download_data(self) -> None:
         edf_path = os.path.join(self.project_dir, 'data', 'downloads', 'edfs')
         rml_path = os.path.join(self.project_dir, 'data', 'downloads', 'rmls')
@@ -46,3 +46,5 @@ class Preprocessor:
                 print("Download of labels completed successfully.")
             else:
                 print(f"Failed to download the file. Status code: {response.status_code}")
+
+    def

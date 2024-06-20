@@ -19,7 +19,7 @@ class Preprocessor:
 
         3. Creating segments from timestamps provided in the rml files.
 
-        4. Creating spectrograms and randomly shuffling them into train, validation and test folders.
+        4. Creating spectrogram files and randomly shuffling them into train, validation and test folders.
     """
     def __init__(self,
                  project_dir: str,
@@ -28,6 +28,7 @@ class Preprocessor:
                  data_channels: list,
                  classes: dict,
                  sample_rate: int = 48_000):
+
         self.project_dir = project_dir
         self.edf_urls = edf_urls
         self.rml_urls = rml_urls
@@ -43,11 +44,11 @@ class Preprocessor:
         Creates directory structure necessary to download and process data.
         :return: None
         """
-        self.edf_path = os.path.join(self.project_dir, 'downloads', 'edf')
-        self.rml_path = os.path.join(self.project_dir, 'downloads', 'rml')
-        self.parquet_path = os.path.join(self.project_dir, 'processed', 'parquet')
-        self.audio_path = os.path.join(self.project_dir, 'processed', 'audio')
-        self.spectrogram_path = os.path.join(self.project_dir, 'processed', 'spectrogram')
+        self.edf_path: str = os.path.join(self.project_dir, 'downloads', 'edf')
+        self.rml_path: str = os.path.join(self.project_dir, 'downloads', 'rml')
+        self.parquet_path: str = os.path.join(self.project_dir, 'processed', 'parquet')
+        self.audio_path: str = os.path.join(self.project_dir, 'processed', 'audio')
+        self.spectrogram_path: str = os.path.join(self.project_dir, 'processed', 'spectrogram')
 
         os.makedirs(self.edf_path, exist_ok=True)
         os.makedirs(self.rml_path, exist_ok=True)
@@ -133,16 +134,16 @@ class Preprocessor:
 
                 self.label_dictionary[rml_folder] = events_apnea
 
-    def readout_single_edf_file(self, edf_folder) -> np.array:
+    def readout_single_edf_file(self, edf_folder: str) -> np.array:
         """
         Reads out all files from a single edf directory and concatenates the channel information
         in a numpy array.
         :returns: None
         """
-        edf_files = sorted([os.path.join(edf_folder, file) for file in os.listdir(edf_folder)])
+        edf_files: list = sorted([os.path.join(edf_folder, file) for file in os.listdir(edf_folder)])
 
-        full_readout = np.array([])
-        step_size = 10_000_000
+        full_readout: np.ndarray = np.array([])
+        step_size: int = 10_000_000
 
         for edf_file in edf_files:
             print(f'Starting readout for file {edf_file}')
@@ -196,7 +197,7 @@ class Preprocessor:
         :return: None
         """
         self._create_directory_structure()
-        # self._download_data()
+        self._download_data()
         self._organize_downloads()
         self._create_label_dictionary()
         self._get_edf_segments_from_labels()

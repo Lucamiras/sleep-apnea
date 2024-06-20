@@ -9,6 +9,7 @@ import librosa
 import matplotlib.pyplot as plt
 from scipy.io.wavfile import write
 import gc
+import random
 
 
 class Preprocessor:
@@ -235,11 +236,39 @@ class Preprocessor:
         
         return denoised_signal
 
-    def _shuffle_spectrogram_files(self):
-        # take split values
-        # randomly shuffle files
-        # move into train valid test
-        pass
+    def _train_val_test_split_spectrogram_files(self) -> None:
+        """
+        This function shuffles the spectrogram files randomly and assigns them to train, validation or test folders
+        according to the ratio defined in train_val_test_ratio.
+        """
+        train_size = .8
+        validation_size = (1 - train_size) / 2
+        spectrogram_files = [file for file in os.listdir(self.spectrogram_path) if file.endswith('.png')]
+        random.shuffle(spectrogram_files)
+        total_number_of_files = len(spectrogram_files)
+
+        train_index = int(total_number_of_files * train_size) # 80
+        validation_index = int(total_number_of_files * validation_size) + train_index
+
+        train_files = spectrogram_files[:train_index]
+        validation_files = spectrogram_files[train_index:validation_index]
+        test_files = spectrogram_files[validation_index:]
+
+        self._move_files(train_files, 'train')
+        self._move_files(validation_files, 'validation')
+        self._move_files(test_files, 'test')
+
+    def _move_files(self, files, target_folder) -> None:
+        """
+        Move files to the target folder.
+        """
+        destination_path = os.path.join(self.spectrogram_path, target_folder)
+        os.makedirs(destination_path, exist_ok=True)
+
+        for file in files:
+            source = os.path.join(self.spectrogram_path, file)
+            destination = os.path.join(destination_path, file)
+            shutil.move(src=source, dst=destination)
 
     def _create_wav_data(self, pcm_rate: int = 32768) -> None:
         """
@@ -263,9 +292,9 @@ class Preprocessor:
         """
         self._create_directory_structure()
         #self._download_data()
-        self._organize_downloads()
-        self._create_label_dictionary()
-        self._get_edf_segments_from_labels()
+        #self._organize_downloads()
+        #self._create_label_dictionary()
+        #self._get_edf_segments_from_labels()
         #self._create_wav_data()
-        self._create_spectrogram_files()
-        # self._shuffle_spectrogram_files()
+        #self._create_spectrogram_files()
+        self._train_val_test_split_spectrogram_files()

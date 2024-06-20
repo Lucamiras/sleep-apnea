@@ -17,4 +17,3 @@ pre = Preprocessor(
 )
 
 pre.run()
-print(pre.label_dictionary)

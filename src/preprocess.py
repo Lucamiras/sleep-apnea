@@ -211,7 +211,8 @@ class Preprocessor:
         This function iterates through the segments list and creates spectrogram files from the data.
         :returns: None
         """
-        for index, annotated_segment in enumerate(self.segments_list):
+        print('Creating spectrogram files ...')
+        for index, annotated_segment in tqdm(enumerate(self.segments_list)):
             label, signal = annotated_segment
             class_index = self.classes[label]
             file_name = f'spect_{index:05d}_{label}_{class_index}.png'
@@ -264,11 +265,14 @@ class Preprocessor:
         """
         destination_path = os.path.join(self.spectrogram_path, target_folder)
         os.makedirs(destination_path, exist_ok=True)
+        number_of_files = len(files)
 
         for file in files:
             source = os.path.join(self.spectrogram_path, file)
             destination = os.path.join(destination_path, file)
             shutil.move(src=source, dst=destination)
+
+        print(f'Moved {number_of_files} files into /{target_folder}.')
 
     def _create_wav_data(self, pcm_rate: int = 32768) -> None:
         """

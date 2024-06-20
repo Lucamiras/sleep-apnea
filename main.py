@@ -1,19 +1,14 @@
 from src.preprocess import Preprocessor
-from src.utils.file_urls import get_download_urls
-
-edf_urls, rml_urls = get_download_urls()
+from src.utils.globals import (
+    EDF_URLS, RML_URLS, DATA_CHANNELS, CLASSES
+)
 
 pre = Preprocessor(
     project_dir='data',
-    edf_urls=edf_urls,
-    rml_urls=rml_urls,
-    data_channels=['Mic'],
-    classes={
-        "NoApnea": 0,
-        "Hypopnea": 1,
-        "ObstructiveApnea": 2,
-        "MixedApnea": 3
-    }
+    edf_urls=EDF_URLS,
+    rml_urls=RML_URLS,
+    data_channels=DATA_CHANNELS,
+    classes=CLASSES
 )
 
 pre.run()

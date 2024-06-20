@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import MagicMock
 import os
 from _experiments.preprocess import Preprocessor
-from src.utils.file_urls import get_file_urls
+from src.utils.globals import get_file_urls
 
 
 class UnitTest(unittest.TestCase):

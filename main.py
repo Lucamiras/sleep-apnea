@@ -2,6 +2,7 @@ from src.preprocess_new import Preprocessor
 from src.utils.file_urls import get_download_urls
 
 edf_urls, rml_urls = get_download_urls()
+
 pre = Preprocessor(
     project_dir='data',
     edf_urls=edf_urls,
@@ -16,7 +17,3 @@ pre = Preprocessor(
 )
 
 pre.run()
-print(pre.label_dictionary)
-print(len(pre.label_dictionary))
-print(pre.segments_list[0][1])
-print(len(pre.segments_list[0][1]))

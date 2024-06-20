@@ -5,7 +5,9 @@ import mne
 import xml.dom.minidom
 import numpy as np
 from tqdm import tqdm
-import gc
+import librosa
+import matplotlib.pyplot as plt
+import pywt
 
 
 class Preprocessor:
@@ -66,6 +68,7 @@ class Preprocessor:
 
         for url in tqdm(self.edf_urls):
             response = requests.get(url)
+            print(response)
             file_name = url[-28:].replace('%5B', '[').replace('%5D', ']')
             file_path = os.path.join(self.edf_path, file_name)
             if response.status_code == 200:
@@ -158,7 +161,7 @@ class Preprocessor:
 
         return full_readout
 
-    def _get_edf_segments_from_labels(self):
+    def _get_edf_segments_from_labels(self) -> None:
         """
         Load edf files and create segments by timestamps.
         :return:
@@ -180,10 +183,45 @@ class Preprocessor:
                 if len(segment) > 0:
                     self.segments_list.append((label_desc, segment))
 
-    def _create_spectrogram_files(self):
-        # Create spectrogram for each segment
-        # Save into spectrogram folder
-        pass
+    def _create_spectrogram_files(self) -> None:
+        """
+        This function iterates through the segments list and creates spectrogram files from the data.
+        :returns: None
+        """
+        for index, annotated_segment in enumerate(self.segments_list):
+            label, signal = annotated_segment
+            class_index = self.classes[label]
+
+            denoised_signal = self.spectral_gate(signal, sr=self.sample_rate)
+            matrix_d = librosa.stft(denoised_signal)
+            db_scaled_spectrogram = librosa.amplitude_to_db(np.abs(matrix_d), ref=np.max)
+
+            file_name = f'spect_{index:05d}_{label}_{class_index}.png'
+            plt.figure(figsize=(2, 2))
+            librosa.display.specshow(db_scaled_spectrogram, sr=self.sample_rate, x_axis='time', y_axis='log')
+            plt.axis('off')
+            plt.savefig(os.path.join(self.spectrogram_path, file_name), bbox_inches='tight', pad_inches=0)
+            plt.close()
+            break
+
+    def spectral_gate(self, signal, sr, n_fft=2048, hop_length=512, win_length=2048):
+        # Compute STFT
+        stft_signal = librosa.stft(signal, n_fft=n_fft, hop_length=hop_length, win_length=win_length)
+        magnitude, phase = librosa.magphase(stft_signal)
+        
+        # Estimate noise profile (simple method)
+        noise_profile = np.mean(magnitude[:, 10:], axis=1, keepdims=True)  # Assuming first 10 frames are noise
+        
+        # Set threshold (can be tuned)
+        threshold = 2 * noise_profile  # This factor can be adjusted
+        
+        # Apply gate
+        gated_magnitude = np.maximum(magnitude - threshold, 0)
+        
+        # Inverse STFT
+        denoised_signal = librosa.istft(gated_magnitude * phase, hop_length=hop_length, win_length=win_length)
+        
+        return denoised_signal
 
     def _shuffle_spectrogram_files(self):
         # take split values
@@ -197,9 +235,9 @@ class Preprocessor:
         :return: None
         """
         self._create_directory_structure()
-        self._download_data()
+        #self._download_data()
         self._organize_downloads()
         self._create_label_dictionary()
         self._get_edf_segments_from_labels()
-        # self._create_spectrogram_files()
+        self._create_spectrogram_files()
         # self._shuffle_spectrogram_files()

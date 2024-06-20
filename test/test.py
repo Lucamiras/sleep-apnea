@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import MagicMock
 import os
-from src.preprocess import Preprocessor
+from _experiments.preprocess import Preprocessor
 from src.utils.file_urls import get_file_urls
 
 

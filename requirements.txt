@@ -8,4 +8,3 @@ matplotlib
 scipy
 torch
 torchvision
-PIL

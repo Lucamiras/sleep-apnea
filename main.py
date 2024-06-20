@@ -1,4 +1,4 @@
-from src.preprocess_new import Preprocessor
+from src.preprocess import Preprocessor
 from src.utils.file_urls import get_download_urls
 
 edf_urls, rml_urls = get_download_urls()

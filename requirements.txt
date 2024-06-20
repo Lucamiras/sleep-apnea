@@ -1,0 +1,11 @@
+requests
+mne
+xml.dom.minidom
+numpy
+tqdm
+librosa
+matplotlib
+scipy
+torch
+torchvision
+PIL

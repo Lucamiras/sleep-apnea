@@ -7,7 +7,8 @@ import numpy as np
 from tqdm import tqdm
 import librosa
 import matplotlib.pyplot as plt
-import pywt
+from scipy.io.wavfile import write
+import gc
 
 
 class Preprocessor:
@@ -153,7 +154,6 @@ class Preprocessor:
             raw_edf_file = mne.io.read_raw_edf(edf_file, preload=False)
             length_of_file = len(raw_edf_file)
             for sliding_index in tqdm(range(0, length_of_file, step_size)):
-                # print(sliding_index, '->', min((sliding_index + step_size, length_of_file)))
                 raw_edf_chunk = raw_edf_file.get_data(picks=['Mic'],
                                                       start=sliding_index,
                                                       stop=min((sliding_index + step_size, length_of_file)))
@@ -183,6 +183,8 @@ class Preprocessor:
                 if len(segment) > 0:
                     self.segments_list.append((label_desc, segment))
 
+            del edf_readout, segment
+            gc.collect()
     def _create_spectrogram_files(self) -> None:
         """
         This function iterates through the segments list and creates spectrogram files from the data.
@@ -191,18 +193,33 @@ class Preprocessor:
         for index, annotated_segment in enumerate(self.segments_list):
             label, signal = annotated_segment
             class_index = self.classes[label]
+            file_name = f'spect_{index:05d}_{label}_{class_index}.png'
 
-            denoised_signal = self.spectral_gate(signal, sr=self.sample_rate)
-            matrix_d = librosa.stft(denoised_signal)
+            # denoised_signal = self.spectral_gate(signal, sr=self.sample_rate)
+            matrix_d = librosa.stft(signal)
             db_scaled_spectrogram = librosa.amplitude_to_db(np.abs(matrix_d), ref=np.max)
 
-            file_name = f'spect_{index:05d}_{label}_{class_index}.png'
             plt.figure(figsize=(2, 2))
             librosa.display.specshow(db_scaled_spectrogram, sr=self.sample_rate, x_axis='time', y_axis='log')
             plt.axis('off')
             plt.savefig(os.path.join(self.spectrogram_path, file_name), bbox_inches='tight', pad_inches=0)
             plt.close()
             break
+
+    def _create_wav_data(self, pcm_rate: int = 32768) -> None:
+        """
+        This function iterates through the segments list and creates individual wav files.
+        :returns: None
+        """
+        for index, annotated_segment in enumerate(self.segments_list):
+            label, signal = annotated_segment
+            class_index = self.classes[label]
+            file_name_wav = f'{index:05d}_{label}_{class_index}.wav'
+
+            audio_data = np.interp(signal, (signal.min(), signal.max()), (-1, 1))
+            audio_data_pcm = np.int16(audio_data * pcm_rate)
+            wav_path = os.path.join(self.audio_path, file_name_wav)
+            write(wav_path, self.sample_rate, audio_data_pcm)
 
     def spectral_gate(self, signal, sr, n_fft=2048, hop_length=512, win_length=2048):
         # Compute STFT
@@ -239,5 +256,6 @@ class Preprocessor:
         self._organize_downloads()
         self._create_label_dictionary()
         self._get_edf_segments_from_labels()
-        self._create_spectrogram_files()
+        self._create_wav_data()
+        # self._create_spectrogram_files()
         # self._shuffle_spectrogram_files()

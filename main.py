@@ -9,7 +9,7 @@ pre = Preprocessor(
     rml_urls=rml_urls,
     data_channels=['Mic'],
     classes={
-        "No Apnea": 0,
+        "NoApnea": 0,
         "Hypopnea": 1,
         "ObstructiveApnea": 2,
         "MixedApnea": 3
@@ -17,3 +17,4 @@ pre = Preprocessor(
 )
 
 pre.run()
+print(pre.label_dictionary)

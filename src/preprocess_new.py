@@ -49,13 +49,11 @@ class Preprocessor:
         """
         self.edf_path: str = os.path.join(self.project_dir, 'downloads', 'edf')
         self.rml_path: str = os.path.join(self.project_dir, 'downloads', 'rml')
-        self.parquet_path: str = os.path.join(self.project_dir, 'processed', 'parquet')
         self.audio_path: str = os.path.join(self.project_dir, 'processed', 'audio')
         self.spectrogram_path: str = os.path.join(self.project_dir, 'processed', 'spectrogram')
 
         os.makedirs(self.edf_path, exist_ok=True)
         os.makedirs(self.rml_path, exist_ok=True)
-        os.makedirs(self.parquet_path, exist_ok=True)
         os.makedirs(self.audio_path, exist_ok=True)
         os.makedirs(self.spectrogram_path, exist_ok=True)
 
@@ -64,7 +62,6 @@ class Preprocessor:
         Downloads the files specified in the edf and rml urls.
         :return: None
         """
-
         print(f"Starting download of {len(self.edf_urls)} EDF files and {len(self.rml_urls)} RML files.")
 
         for url in tqdm(self.edf_urls):
@@ -127,18 +124,40 @@ class Preprocessor:
                 group = domtree.documentElement
                 events = group.getElementsByTagName("Event")
                 events_apnea = []
+                non_events_apnea = []
+                non_events_counter = 0
 
                 for event in events:
                     event_type = event.getAttribute('Type')
                     if event_type in self.classes.keys():
-                        iter_type_start_duration = (str(event_type),
-                                                    float(event.getAttribute('Start')),
-                                                    float((event.getAttribute('Duration'))))
-                        events_apnea.append(iter_type_start_duration)
+                        positive_example = (str(event_type),
+                                            float(event.getAttribute('Start')),
+                                            float(event.getAttribute('Duration')))
+                        events_apnea.append(positive_example)
 
-                self.label_dictionary[rml_folder] = events_apnea
+                buffer_in_seconds = 5
+                for i in range(len(events_apnea) -1):
+                    current_event = events_apnea[i]
+                    next_event = events_apnea[i + 1]
+                    lower_limit = current_event[1] + current_event[2] + buffer_in_seconds
+                    upper_limit = next_event[1]
+                    number_of_possible_clips_in_range = (int(upper_limit - lower_limit)) // 10
+                    for number_of_clip in range(1, int(number_of_possible_clips_in_range)):
+                        negative_example = (str(self.classes[0]),
+                                            float(lower_limit + (10 * number_of_clip)),
+                                            float(10))
+                        non_events_apnea.append(negative_example)
+                        non_events_counter += 1
+                        if non_events_counter >= len(events_apnea):
+                            break
+                    if non_events_counter >= len(events_apnea):
+                        break
 
-    def readout_single_edf_file(self, edf_folder: str) -> np.array:
+                all_events = events_apnea + non_events_apnea
+
+                self.label_dictionary[rml_folder] = all_events
+
+    def _read_out_single_edf_file(self, edf_folder: str) -> np.array:
         """
         Reads out all files from a single edf directory and concatenates the channel information
         in a numpy array.
@@ -172,7 +191,7 @@ class Preprocessor:
         for edf_folder in os.listdir(self.edf_path):
             print(f"Starting to create segments for user {edf_folder}")
             edf_folder_path = os.path.join(self.edf_path, edf_folder)
-            edf_readout = self.readout_single_edf_file(edf_folder_path)
+            edf_readout = self._read_out_single_edf_file(edf_folder_path)
 
             for label in self.label_dictionary[edf_folder]:
                 label_desc = label[0]
@@ -185,6 +204,7 @@ class Preprocessor:
 
             del edf_readout, segment
             gc.collect()
+
     def _create_spectrogram_files(self) -> None:
         """
         This function iterates through the segments list and creates spectrogram files from the data.
@@ -195,8 +215,8 @@ class Preprocessor:
             class_index = self.classes[label]
             file_name = f'spect_{index:05d}_{label}_{class_index}.png'
 
-            # denoised_signal = self.spectral_gate(signal, sr=self.sample_rate)
-            matrix_d = librosa.stft(signal)
+            denoised_signal = self._spectral_gate(signal, sr=self.sample_rate)
+            matrix_d = librosa.stft(denoised_signal)
             db_scaled_spectrogram = librosa.amplitude_to_db(np.abs(matrix_d), ref=np.max)
 
             plt.figure(figsize=(2, 2))
@@ -204,7 +224,22 @@ class Preprocessor:
             plt.axis('off')
             plt.savefig(os.path.join(self.spectrogram_path, file_name), bbox_inches='tight', pad_inches=0)
             plt.close()
-            break
+
+    def _spectral_gate(self, signal, sr, n_fft=2048, hop_length=512, win_length=2048):
+        stft_signal = librosa.stft(signal, n_fft=n_fft, hop_length=hop_length, win_length=win_length)
+        magnitude, phase = librosa.magphase(stft_signal)
+        noise_profile = np.mean(magnitude[:, 10:], axis=1, keepdims=True)  # Assuming first 10 frames are noise
+        threshold = 2 * noise_profile  # This factor can be adjusted
+        gated_magnitude = np.maximum(magnitude - threshold, 0)
+        denoised_signal = librosa.istft(gated_magnitude * phase, hop_length=hop_length, win_length=win_length)
+        
+        return denoised_signal
+
+    def _shuffle_spectrogram_files(self):
+        # take split values
+        # randomly shuffle files
+        # move into train valid test
+        pass
 
     def _create_wav_data(self, pcm_rate: int = 32768) -> None:
         """
@@ -221,33 +256,8 @@ class Preprocessor:
             wav_path = os.path.join(self.audio_path, file_name_wav)
             write(wav_path, self.sample_rate, audio_data_pcm)
 
-    def spectral_gate(self, signal, sr, n_fft=2048, hop_length=512, win_length=2048):
-        # Compute STFT
-        stft_signal = librosa.stft(signal, n_fft=n_fft, hop_length=hop_length, win_length=win_length)
-        magnitude, phase = librosa.magphase(stft_signal)
-        
-        # Estimate noise profile (simple method)
-        noise_profile = np.mean(magnitude[:, 10:], axis=1, keepdims=True)  # Assuming first 10 frames are noise
-        
-        # Set threshold (can be tuned)
-        threshold = 2 * noise_profile  # This factor can be adjusted
-        
-        # Apply gate
-        gated_magnitude = np.maximum(magnitude - threshold, 0)
-        
-        # Inverse STFT
-        denoised_signal = librosa.istft(gated_magnitude * phase, hop_length=hop_length, win_length=win_length)
-        
-        return denoised_signal
-
-    def _shuffle_spectrogram_files(self):
-        # take split values
-        # randomly shuffle files
-        # move into train valid test
-        pass
-
     def run(self) -> None:
-        """
+        """os.makedirs(self.parquet_path, exist_ok=True)
         Runs the preprocessing pipeline.
         :return: None
         """
@@ -256,6 +266,6 @@ class Preprocessor:
         self._organize_downloads()
         self._create_label_dictionary()
         self._get_edf_segments_from_labels()
-        self._create_wav_data()
-        # self._create_spectrogram_files()
+        #self._create_wav_data()
+        self._create_spectrogram_files()
         # self._shuffle_spectrogram_files()

@@ -143,7 +143,7 @@ class Preprocessor:
                     upper_limit = next_event[1]
                     number_of_possible_clips_in_range = (int(upper_limit - lower_limit)) // 10
                     for number_of_clip in range(1, int(number_of_possible_clips_in_range)):
-                        negative_example = (str(self.classes[0]),
+                        negative_example = ('NoApnea',
                                             float(lower_limit + (10 * number_of_clip)),
                                             float(10))
                         non_events_apnea.append(negative_example)

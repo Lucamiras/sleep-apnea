@@ -133,6 +133,30 @@ class Preprocessor:
 
                 self.label_dictionary[rml_folder] = events_apnea
 
+    def readout_single_edf_file(self, edf_folder) -> np.array:
+        """
+        Reads out all files from a single edf directory and concatenates the channel information
+        in a numpy array.
+        :returns: None
+        """
+        edf_files = sorted([os.path.join(edf_folder, file) for file in os.listdir(edf_folder)])
+
+        full_readout = np.array([])
+        step_size = 10_000_000
+
+        for edf_file in edf_files:
+            print(f'Starting readout for file {edf_file}')
+            raw_edf_file = mne.io.read_raw_edf(edf_file, preload=False)
+            length_of_file = len(raw_edf_file)
+            for sliding_index in tqdm(range(0, length_of_file, step_size)):
+                # print(sliding_index, '->', min((sliding_index + step_size, length_of_file)))
+                raw_edf_chunk = raw_edf_file.get_data(picks=['Mic'],
+                                                      start=sliding_index,
+                                                      stop=min((sliding_index + step_size, length_of_file)))
+                full_readout = np.append(full_readout, raw_edf_chunk)
+
+        return full_readout
+
     def _get_edf_segments_from_labels(self):
         """
         Load edf files and create segments by timestamps.
@@ -143,30 +167,17 @@ class Preprocessor:
 
         for edf_folder in os.listdir(self.edf_path):
             print(f"Starting to create segments for user {edf_folder}")
-            sorted_files = sorted([file for file in os.listdir(os.path.join(self.edf_path, edf_folder))])
-
-            edf_file_content = np.array([])
-            for file_part in sorted_files:
-                raw = mne.io.read_raw_edf(os.path.join(self.edf_path, edf_folder, file_part), verbose=0, preload=False)
-                length = int(len(raw) / 10)
-                raw_channels_only = raw.pick(self.data_channels)
-                del raw
-                gc.collect()
-                for i in tqdm(range(10)):
-                    start = length * i
-                    end = length * (i + 1)
-                    raw_channels_get_data = raw_channels_only.get_data(start=start, stop=end)
-                    edf_file_content = np.append(edf_file_content, raw_channels_get_data)
-                    del raw_channels_get_data
-                    gc.collect()
+            edf_folder_path = os.path.join(self.edf_path, edf_folder)
+            edf_readout = self.readout_single_edf_file(edf_folder_path)
 
             for label in self.label_dictionary[edf_folder]:
                 label_desc = label[0]
                 time_stamp = label[1]
                 start_idx = int(time_stamp * self.sample_rate)
                 end_idx = int((time_stamp + clip_length_seconds) * self.sample_rate)
-                segment = edf_file_content[start_idx:end_idx]
-                self.segments_list.append((label_desc, segment))
+                segment = edf_readout[start_idx:end_idx]
+                if len(segment) > 0:
+                    self.segments_list.append((label_desc, segment))
 
     def _create_spectrogram_files(self):
         # Create spectrogram for each segment
@@ -186,7 +197,7 @@ class Preprocessor:
         """
         self._create_directory_structure()
         # self._download_data()
-        # self._organize_downloads()
+        self._organize_downloads()
         self._create_label_dictionary()
         self._get_edf_segments_from_labels()
         # self._create_spectrogram_files()

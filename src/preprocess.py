@@ -299,8 +299,8 @@ class Preprocessor:
         if download:
             self._download_data()
         self._organize_downloads()
-        # self._create_label_dictionary()
-        # self._get_edf_segments_from_labels()
+        self._create_label_dictionary()
+        self._get_edf_segments_from_labels()
         # self._create_wav_data()
-        # self._create_spectrogram_files()
-        # self._train_val_test_split_spectrogram_files()
+        self._create_spectrogram_files()
+        self._train_val_test_split_spectrogram_files()

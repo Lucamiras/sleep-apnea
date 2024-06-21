@@ -101,7 +101,7 @@ class Preprocessor:
         """
         edf_folder_contents = [file for file in os.listdir(self.edf_path) if file.endswith('.edf')]
         rml_folder_contents = [file for file in os.listdir(self.rml_path) if file.endswith('.rml')]
-        self.patient_ids = set([uid.split('-')[0] for uid in edf_folder_contents])
+        self.patient_ids = list(set([uid.split('-')[0] for uid in edf_folder_contents]))
 
         for patient_id in self.patient_ids:
             os.makedirs(os.path.join(self.edf_path, patient_id), exist_ok=True)
@@ -190,21 +190,22 @@ class Preprocessor:
         clip_length_seconds = 10
 
         for edf_folder in os.listdir(self.edf_path):
-            print(f"Starting to create segments for user {edf_folder}")
-            edf_folder_path = os.path.join(self.edf_path, edf_folder)
-            edf_readout = self._read_out_single_edf_file(edf_folder_path)
+            if edf_folder in self.patient_ids:
+                print(f"Starting to create segments for user {edf_folder}")
+                edf_folder_path = os.path.join(self.edf_path, edf_folder)
+                edf_readout = self._read_out_single_edf_file(edf_folder_path)
 
-            for label in self.label_dictionary[edf_folder]:
-                label_desc = label[0]
-                time_stamp = label[1]
-                start_idx = int(time_stamp * self.sample_rate)
-                end_idx = int((time_stamp + clip_length_seconds) * self.sample_rate)
-                segment = edf_readout[start_idx:end_idx]
-                if len(segment) > 0:
-                    self.segments_list.append((label_desc, segment))
+                for label in self.label_dictionary[edf_folder]:
+                    label_desc = label[0]
+                    time_stamp = label[1]
+                    start_idx = int(time_stamp * self.sample_rate)
+                    end_idx = int((time_stamp + clip_length_seconds) * self.sample_rate)
+                    segment = edf_readout[start_idx:end_idx]
+                    if len(segment) > 0:
+                        self.segments_list.append((label_desc, segment))
 
-            del edf_readout, segment
-            gc.collect()
+                del edf_readout, segment
+                gc.collect()
 
     def _create_spectrogram_files(self) -> None:
         """
@@ -298,8 +299,8 @@ class Preprocessor:
         if download:
             self._download_data()
         self._organize_downloads()
-        self._create_label_dictionary()
-        self._get_edf_segments_from_labels()
+        # self._create_label_dictionary()
+        # self._get_edf_segments_from_labels()
         # self._create_wav_data()
-        self._create_spectrogram_files()
-        self._train_val_test_split_spectrogram_files()
+        # self._create_spectrogram_files()
+        # self._train_val_test_split_spectrogram_files()

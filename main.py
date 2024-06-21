@@ -12,3 +12,4 @@ pre = Preprocessor(
 )
 
 pre.run(download=False)
+print(pre.patient_ids)

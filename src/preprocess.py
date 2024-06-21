@@ -118,6 +118,7 @@ class Preprocessor:
             shutil.move(src=src_path, dst=dst_path)
 
     def _create_label_dictionary(self):
+        clip_length = 10
         for rml_folder in os.listdir(self.rml_path):
             for file in os.listdir(os.path.join(self.rml_path, rml_folder)):
                 label_path = os.path.join(self.rml_path, rml_folder, file)
@@ -126,35 +127,29 @@ class Preprocessor:
                 events = group.getElementsByTagName("Event")
                 events_apnea = []
                 non_events_apnea = []
-                non_events_counter = 0
 
                 for event in events:
                     event_type = event.getAttribute('Type')
                     if event_type in self.classes.keys():
                         positive_example = (str(event_type),
                                             float(event.getAttribute('Start')),
-                                            float(event.getAttribute('Duration')))
+                                            float(clip_length))
                         events_apnea.append(positive_example)
 
-                buffer_in_seconds = 5
                 for i in range(len(events_apnea) -1):
                     current_event = events_apnea[i]
                     next_event = events_apnea[i + 1]
-                    lower_limit = current_event[1] + current_event[2] + buffer_in_seconds
+                    lower_limit = current_event[1] + current_event[2]
                     upper_limit = next_event[1]
-                    number_of_possible_clips_in_range = (int(upper_limit - lower_limit)) // 10
-                    for number_of_clip in range(1, int(number_of_possible_clips_in_range)):
+                    if upper_limit - lower_limit > float(clip_length):
+                        middle_value = (lower_limit + upper_limit) / 2
                         negative_example = ('NoApnea',
-                                            float(lower_limit + (10 * number_of_clip)),
-                                            float(10))
+                                            float(middle_value - (clip_length / 2)),
+                                            float(clip_length))
                         non_events_apnea.append(negative_example)
-                        non_events_counter += 1
-                        if non_events_counter >= len(events_apnea):
-                            break
-                    if non_events_counter >= len(events_apnea):
-                        break
 
                 all_events = events_apnea + non_events_apnea
+                all_events = sorted(all_events, key= lambda x: x[1])
 
                 self.label_dictionary[rml_folder] = all_events
 
@@ -300,7 +295,7 @@ class Preprocessor:
             self._download_data()
         self._organize_downloads()
         self._create_label_dictionary()
-        self._get_edf_segments_from_labels()
+        # self._get_edf_segments_from_labels()
         # self._create_wav_data()
-        self._create_spectrogram_files()
-        self._train_val_test_split_spectrogram_files()
+        # self._create_spectrogram_files()
+        # self._train_val_test_split_spectrogram_files()

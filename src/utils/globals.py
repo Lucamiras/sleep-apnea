@@ -18,5 +18,6 @@ CLASSES = {
     "NoApnea": 0,
     "Hypopnea": 1,
     "ObstructiveApnea": 2,
-    "MixedApnea": 3
+    "MixedApnea": 3,
+    "CentralApnea": 4
 }

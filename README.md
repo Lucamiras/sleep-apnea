@@ -1,6 +1,10 @@
 # WORK IN PROGRESS
 This is where my DSR portfolio project will live. 
 
-Nothing to see here.
+Nothing to see here - yet.
 
-Move on please.
+Come back soon, there will be exciting stuff!
+
+```commandline
+echo "Please come back soon!"
+```

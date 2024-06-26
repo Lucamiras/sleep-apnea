@@ -11,6 +11,5 @@ pre = Preprocessor(
     classes=CLASSES
 )
 
-
 pre.run(download=False)
 

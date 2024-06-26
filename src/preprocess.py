@@ -203,7 +203,7 @@ class Preprocessor:
                 del edf_readout, segment
                 gc.collect()
 
-    def save_spectrogram(self, wav_file_path, dest_path) -> None:
+    def _save_spectrogram(self, wav_file_path, dest_path) -> None:
         """
         This function takes a single wav file and creates a de-noised spectrogram.
         """
@@ -222,15 +222,15 @@ class Preprocessor:
         plt.savefig(dest_path, bbox_inches='tight', pad_inches=0)
         plt.close()
 
-    def _spectral_gate(self, signal, sr, n_fft=2048, hop_length=512, win_length=2048):
-        stft_signal = librosa.stft(signal, n_fft=n_fft, hop_length=hop_length, win_length=win_length)
-        magnitude, phase = librosa.magphase(stft_signal)
-        noise_profile = np.mean(magnitude[:, 10:], axis=1, keepdims=True)  # Assuming first 10 frames are noise
-        threshold = 2 * noise_profile  # This factor can be adjusted
-        gated_magnitude = np.maximum(magnitude - threshold, 0)
-        denoised_signal = librosa.istft(gated_magnitude * phase, hop_length=hop_length, win_length=win_length)
-        
-        return denoised_signal
+    def _create_all_spectrogram_files(self) -> None:
+        """
+        Goes through all wav files in the data/processed/audio subfolder and calls the save_spectrogram
+        function."""
+        for index, wav_file in tqdm(enumerate(os.listdir(self.audio_path))):
+            wav_file_path = os.path.join(self.audio_path, wav_file)
+            spec_file_name = wav_file.split('.wav')[0]
+            dest_path = os.path.join(self.spectrogram_path, spec_file_name)
+            self._save_spectrogram(wav_file_path, dest_path)
 
     def _train_val_test_split_spectrogram_files(self) -> None:
         """
@@ -296,5 +296,5 @@ class Preprocessor:
         self._create_label_dictionary()
         self._get_edf_segments_from_labels()
         self._create_wav_data()
-        # self._create_spectrogram_files()
-        # self._train_val_test_split_spectrogram_files()
+        self._create_all_spectrogram_files()
+        self._train_val_test_split_spectrogram_files()

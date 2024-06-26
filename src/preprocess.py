@@ -70,7 +70,6 @@ class Preprocessor:
 
         for url in tqdm(self.edf_urls):
             response = requests.get(url)
-            print(response)
             file_name = url[-28:].replace('%5B', '[').replace('%5D', ']')
             file_path = os.path.join(self.edf_path, file_name)
             if response.status_code == 200:

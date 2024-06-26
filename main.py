@@ -11,19 +11,6 @@ pre = Preprocessor(
     classes=CLASSES
 )
 
+
 pre.run(download=False)
-print(pre.label_dictionary)
-
-counters = {
-    "NoApnea": 0,
-    "Hypopnea": 0,
-    "ObstructiveApnea": 0,
-    "MixedApnea": 0,
-}
-
-for item in pre.label_dictionary['00000995']:
-    label, _, _ = item
-    counters[label] += 1
-
-print(counters)
 

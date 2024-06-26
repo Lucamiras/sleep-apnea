@@ -8,3 +8,4 @@ matplotlib
 scipy
 torch
 torchvision
+noisereduce

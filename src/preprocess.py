@@ -6,6 +6,7 @@ import xml.dom.minidom
 import numpy as np
 from tqdm import tqdm
 import librosa
+import noisereduce as nr
 import matplotlib.pyplot as plt
 from scipy.io.wavfile import write
 import gc
@@ -202,26 +203,24 @@ class Preprocessor:
                 del edf_readout, segment
                 gc.collect()
 
-    def _create_spectrogram_files(self) -> None:
+    def save_spectrogram(self, wav_file_path, dest_path) -> None:
         """
-        This function iterates through the segments list and creates spectrogram files from the data.
-        :returns: None
+        This function takes a single wav file and creates a de-noised spectrogram.
         """
-        print('Creating spectrogram files ...')
-        for index, annotated_segment in tqdm(enumerate(self.segments_list)):
-            label, signal = annotated_segment
-            class_index = self.classes[label]
-            file_name = f'spect_{index:05d}_{label}_{class_index}.png'
+        # y is the audio signal
+        # sr is the sample rate
+        y, sr = librosa.load(wav_file_path, sr=self.sample_rate)  # retrieve audio signal and sample rate
+        y = y / np.max(np.abs(y))
+        y_denoised = nr.reduce_noise(y, sr)
+        y_amplified = y_denoised * 10
+        d_matrix = librosa.stft(y_amplified)
+        d_decibels = librosa.amplitude_to_db(np.abs(d_matrix), ref=np.max)
 
-            denoised_signal = self._spectral_gate(signal, sr=self.sample_rate)
-            matrix_d = librosa.stft(denoised_signal)
-            db_scaled_spectrogram = librosa.amplitude_to_db(np.abs(matrix_d), ref=np.max)
-
-            plt.figure(figsize=(2, 2))
-            librosa.display.specshow(db_scaled_spectrogram, sr=self.sample_rate, x_axis='time', y_axis='log')
-            plt.axis('off')
-            plt.savefig(os.path.join(self.spectrogram_path, file_name), bbox_inches='tight', pad_inches=0)
-            plt.close()
+        plt.figure(figsize=(2, 2))
+        librosa.display.specshow(d_decibels, sr=sr, x_axis='time', y_axis='log')
+        plt.axis('off')
+        plt.savefig(dest_path, bbox_inches='tight', pad_inches=0)
+        plt.close()
 
     def _spectral_gate(self, signal, sr, n_fft=2048, hop_length=512, win_length=2048):
         stft_signal = librosa.stft(signal, n_fft=n_fft, hop_length=hop_length, win_length=win_length)

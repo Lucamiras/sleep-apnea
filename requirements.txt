@@ -1,6 +1,5 @@
 requests
 mne
-xml.dom.minidom
 numpy
 tqdm
 librosa

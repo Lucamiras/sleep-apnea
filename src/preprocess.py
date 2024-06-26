@@ -32,7 +32,8 @@ class Preprocessor:
                  rml_urls: list,
                  data_channels: list,
                  classes: dict,
-                 sample_rate: int = 48_000):
+                 sample_rate: int = 48_000,
+                 train_size: float = .8):
 
         self.project_dir = project_dir
         self.edf_urls = edf_urls
@@ -40,6 +41,7 @@ class Preprocessor:
         self.data_channels = data_channels
         self.classes = classes
         self.sample_rate = sample_rate
+        self.train_size = train_size
         self.patient_ids = []
         self.label_dictionary = {}
         self.segments_list = []
@@ -150,7 +152,7 @@ class Preprocessor:
                         non_events_apnea.append(negative_example)
 
                 all_events = events_apnea + non_events_apnea
-                all_events = sorted(all_events, key= lambda x: x[1])
+                all_events = sorted(all_events, key=lambda x: x[1])
 
                 self.label_dictionary[rml_folder] = all_events
 
@@ -236,14 +238,14 @@ class Preprocessor:
         """
         This function shuffles the spectrogram files randomly and assigns them to train, validation or test folders
         according to the ratio defined in train_val_test_ratio.
+        :returns: None
         """
-        train_size = .8
-        validation_size = (1 - train_size) / 2
+        validation_size = (1 - self.train_size) / 2
         spectrogram_files = [file for file in os.listdir(self.spectrogram_path) if file.endswith('.png')]
         random.shuffle(spectrogram_files)
         total_number_of_files = len(spectrogram_files)
 
-        train_index = int(total_number_of_files * train_size) # 80
+        train_index = int(total_number_of_files * self.train_size)  # 80
         validation_index = int(total_number_of_files * validation_size) + train_index
 
         train_files = spectrogram_files[:train_index]

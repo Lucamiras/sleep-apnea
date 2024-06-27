@@ -11,7 +11,11 @@ import matplotlib.pyplot as plt
 from scipy.io.wavfile import write
 import gc
 import random
+import logging
 
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s',
+                    datefmt='%Y-%m-%d %H:%M:%S')
 
 class Preprocessor:
     """
@@ -44,13 +48,16 @@ class Preprocessor:
         self.train_size = train_size
         self.patient_ids = []
         self.label_dictionary = {}
-        self.segments_list = []
+        self.segments_dictionary = {}
 
     def _create_directory_structure(self) -> None:
         """
         Creates directory structure necessary to download and process data.
         :return: None
         """
+
+        logging.info('1 --- Creating directory structure ---')
+
         self.edf_path: str = os.path.join(self.project_dir, 'downloads', 'edf')
         self.rml_path: str = os.path.join(self.project_dir, 'downloads', 'rml')
         self.audio_path: str = os.path.join(self.project_dir, 'processed', 'audio')
@@ -66,7 +73,7 @@ class Preprocessor:
         Downloads the files specified in the edf and rml urls.
         :return: None
         """
-        print(f"Starting download of {len(self.edf_urls)} EDF files and {len(self.rml_urls)} RML files.")
+        logging.info(f"2 --- Starting download of {len(self.edf_urls)} EDF files and {len(self.rml_urls)} RML files ---")
 
         for url in tqdm(self.edf_urls):
             response = requests.get(url)
@@ -183,7 +190,6 @@ class Preprocessor:
         Load edf files and create segments by timestamps.
         :return:
         """
-        self.segments_list = []
         clip_length_seconds = 10
 
         for edf_folder in os.listdir(self.edf_path):
@@ -191,6 +197,7 @@ class Preprocessor:
                 print(f"Starting to create segments for user {edf_folder}")
                 edf_folder_path = os.path.join(self.edf_path, edf_folder)
                 edf_readout = self._read_out_single_edf_file(edf_folder_path)
+                self.segments_dictionary[edf_folder] = []
 
                 for label in self.label_dictionary[edf_folder]:
                     label_desc = label[0]
@@ -199,7 +206,7 @@ class Preprocessor:
                     end_idx = int((time_stamp + clip_length_seconds) * self.sample_rate)
                     segment = edf_readout[start_idx:end_idx]
                     if len(segment) > 0:
-                        self.segments_list.append((label_desc, segment))
+                        self.segments_dictionary[edf_folder].append((label_desc, segment))
 
                 del edf_readout, segment
                 gc.collect()
@@ -275,15 +282,16 @@ class Preprocessor:
         This function iterates through the segments list and creates individual wav files.
         :returns: None
         """
-        for index, annotated_segment in enumerate(self.segments_list):
-            label, signal = annotated_segment
-            class_index = self.classes[label]
-            file_name_wav = f'{index:05d}_{label}_{class_index}.wav'
+        for edf_folder in os.listdir(self.edf_path):
+            for index, annotated_segment in enumerate(self.segments_dictionary[edf_folder]):
+                label, signal = annotated_segment
+                class_index = self.classes[label]
+                file_name_wav = f'{index:05d}_{edf_folder}_{label}_{class_index}.wav'
 
-            audio_data = np.interp(signal, (signal.min(), signal.max()), (-1, 1))
-            audio_data_pcm = np.int16(audio_data * pcm_rate)
-            wav_path = os.path.join(self.audio_path, file_name_wav)
-            write(wav_path, self.sample_rate, audio_data_pcm)
+                audio_data = np.interp(signal, (signal.min(), signal.max()), (-1, 1))
+                audio_data_pcm = np.int16(audio_data * pcm_rate)
+                wav_path = os.path.join(self.audio_path, file_name_wav)
+                write(wav_path, self.sample_rate, audio_data_pcm)
 
     def run(self, download: bool = True) -> None:
         """os.makedirs(self.parquet_path, exist_ok=True)

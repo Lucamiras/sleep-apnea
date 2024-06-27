@@ -2,6 +2,9 @@ from src.preprocess import Preprocessor
 from src.utils.globals import (
     EDF_URLS, RML_URLS, DATA_CHANNELS, CLASSES
 )
+import warnings
+
+warnings.filterwarnings('ignore')
 
 pre = Preprocessor(
     project_dir='data',
@@ -12,4 +15,3 @@ pre = Preprocessor(
 )
 
 pre.run(download=False)
-

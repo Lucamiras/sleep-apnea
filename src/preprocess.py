@@ -224,7 +224,7 @@ class Preprocessor:
         clip_length_seconds = 10
 
         for edf_folder in os.listdir(self.edf_path):
-            if edf_folder in self.patient_ids:
+            if edf_folder in self.patient_ids and edf_folder in self.label_dictionary.keys():
                 print(f"Starting to create segments for user {edf_folder}")
                 edf_folder_path = os.path.join(self.edf_path, edf_folder)
                 edf_readout = self._read_out_single_edf_file(edf_folder_path)

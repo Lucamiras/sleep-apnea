@@ -48,7 +48,7 @@ class Preprocessor:
                  classes: dict,
                  sample_rate: int = 48_000,
                  train_size: float = .8,
-                 patient_ids_to_process: list = None):
+                 ids_to_ignore: list = None):
 
         self.project_dir = project_dir
         self.edf_urls = edf_urls
@@ -57,7 +57,7 @@ class Preprocessor:
         self.classes = classes
         self.sample_rate = sample_rate
         self.train_size = train_size
-        self.patient_ids_to_process = patient_ids_to_process
+        self.ids_to_ignore = ids_to_ignore
         self.patient_ids = []
         self.label_dictionary = {}
         self.segments_dictionary = {}
@@ -74,11 +74,13 @@ class Preprocessor:
         self.rml_path: str = os.path.join(self.project_dir, 'downloads', 'rml')
         self.audio_path: str = os.path.join(self.project_dir, 'processed', 'audio')
         self.spectrogram_path: str = os.path.join(self.project_dir, 'processed', 'spectrogram')
+        self.retired_path: str = os.path.join(self.project_dir, 'retired')
 
         os.makedirs(self.edf_path, exist_ok=True)
         os.makedirs(self.rml_path, exist_ok=True)
         os.makedirs(self.audio_path, exist_ok=True)
         os.makedirs(self.spectrogram_path, exist_ok=True)
+        os.makedirs(self.retired_path, exist_ok=True)
 
     def _download_data(self) -> None:
         """
@@ -124,18 +126,6 @@ class Preprocessor:
 
         # This block checks if the files I want to process are already in a folder. If yes, it moves the files
         # into the correct position
-        if self.patient_ids_to_process is not None:
-            for edf_folder in self.patient_ids_to_process:
-                for file in os.listdir(os.path.join(self.edf_path, edf_folder)):
-                    shutil.move(os.path.join(self.edf_path, edf_folder, file), self.edf_path)
-                if os.listdir(os.path.join(self.edf_path, edf_folder)):
-                    os.remove(os.path.join(self.edf_path, edf_folder))
-
-            for rml_folder in self.patient_ids_to_process:
-                for file in os.listdir(os.path.join(self.rml_path, rml_folder)):
-                    shutil.move(os.path.join(self.rml_path, rml_folder, file), self.rml_path)
-                if os.listdir(os.path.join(self.rml_path, rml_folder)):
-                    os.remove(os.path.join(self.rml_path, rml_folder))
 
         edf_folder_contents = [file for file in os.listdir(self.edf_path) if file.endswith('.edf')]
         rml_folder_contents = [file for file in os.listdir(self.rml_path) if file.endswith('.rml')]
@@ -331,12 +321,30 @@ class Preprocessor:
                 wav_path = os.path.join(self.audio_path, file_name_wav)
                 write(wav_path, self.sample_rate, audio_data_pcm)
 
+    def _remove_ignored_files(self) -> None:
+        # loop through edf
+        retired_edf_path = os.path.join(self.retired_path, 'edf')
+        retired_rml_path = os.path.join(self.retired_path, 'rml')
+
+        os.makedirs(retired_edf_path, exist_ok=True)
+        os.makedirs(retired_rml_path, exist_ok=True)
+
+        for edf_folder in self.ids_to_ignore:
+            if edf_folder in os.listdir(self.edf_path):
+                shutil.move(os.path.join(self.edf_path, edf_folder), os.path.join(retired_edf_path, edf_folder))
+
+        for rml_folder in self.ids_to_ignore:
+            if rml_folder in os.listdir(self.rml_path):
+                shutil.move(os.path.join(self.rml_path, rml_folder), os.path.join(retired_rml_path, rml_folder))
+
     def run(self, download: bool = True) -> None:
         """os.makedirs(self.parquet_path, exist_ok=True)
         Runs the preprocessing pipeline.
         :return: None
         """
         self._create_directory_structure()
+        if self.ids_to_ignore is not None:
+            self._remove_ignored_files()
         if download:
             self._download_data()
         self._organize_downloads()

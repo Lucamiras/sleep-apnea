@@ -11,7 +11,8 @@ pre = Preprocessor(
     edf_urls=EDF_URLS,
     rml_urls=RML_URLS,
     data_channels=DATA_CHANNELS,
-    classes=CLASSES
+    classes=CLASSES,
+    ids_to_ignore=['00001342']
 )
 
 pre.run(download=False)

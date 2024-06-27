@@ -319,16 +319,15 @@ class Preprocessor:
         """
         logging.info('6 --- Creating WAV files ---')
         for edf_folder in os.listdir(self.edf_path):
-            if edf_folder in self.segments_dictionary.keys():
-                for index, annotated_segment in enumerate(self.segments_dictionary[edf_folder]):
-                    label, signal = annotated_segment
-                    class_index = self.classes[label]
-                    file_name_wav = f'{index:05d}_{edf_folder}_{label}_{class_index}.wav'
+            for index, annotated_segment in enumerate(self.segments_dictionary[edf_folder]):
+                label, signal = annotated_segment
+                class_index = self.classes[label]
+                file_name_wav = f'{index:05d}_{edf_folder}_{label}_{class_index}.wav'
 
-                    audio_data = np.interp(signal, (signal.min(), signal.max()), (-1, 1))
-                    audio_data_pcm = np.int16(audio_data * pcm_rate)
-                    wav_path = os.path.join(self.audio_path, file_name_wav)
-                    write(wav_path, self.sample_rate, audio_data_pcm)
+                audio_data = np.interp(signal, (signal.min(), signal.max()), (-1, 1))
+                audio_data_pcm = np.int16(audio_data * pcm_rate)
+                wav_path = os.path.join(self.audio_path, file_name_wav)
+                write(wav_path, self.sample_rate, audio_data_pcm)
 
     def run(self, download: bool = True) -> None:
         """os.makedirs(self.parquet_path, exist_ok=True)

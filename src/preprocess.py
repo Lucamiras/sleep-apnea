@@ -37,7 +37,8 @@ class Preprocessor:
                  data_channels: list,
                  classes: dict,
                  sample_rate: int = 48_000,
-                 train_size: float = .8):
+                 train_size: float = .8,
+                 process_all: any = True):
 
         self.project_dir = project_dir
         self.edf_urls = edf_urls
@@ -108,6 +109,8 @@ class Preprocessor:
         Moves files into folders by patient id.
         :return:
         """
+        logging.info('3 --- Organizing downloaded files into folders ---')
+
         edf_folder_contents = [file for file in os.listdir(self.edf_path) if file.endswith('.edf')]
         rml_folder_contents = [file for file in os.listdir(self.rml_path) if file.endswith('.rml')]
         self.patient_ids = list(set([uid.split('-')[0] for uid in edf_folder_contents]))
@@ -127,6 +130,7 @@ class Preprocessor:
             shutil.move(src=src_path, dst=dst_path)
 
     def _create_label_dictionary(self):
+        logging.info('4 --- Creating label dictionaries ---')
         clip_length = 10
         for rml_folder in os.listdir(self.rml_path):
             for file in os.listdir(os.path.join(self.rml_path, rml_folder)):
@@ -190,6 +194,7 @@ class Preprocessor:
         Load edf files and create segments by timestamps.
         :return:
         """
+        logging.info('5 --- Create segments ---')
         clip_length_seconds = 10
 
         for edf_folder in os.listdir(self.edf_path):
@@ -234,6 +239,8 @@ class Preprocessor:
         """
         Goes through all wav files in the data/processed/audio subfolder and calls the save_spectrogram
         function."""
+        logging.info('7 --- Creating spectrogram files ---')
+
         for index, wav_file in tqdm(enumerate(os.listdir(self.audio_path))):
             wav_file_path = os.path.join(self.audio_path, wav_file)
             spec_file_name = wav_file.split('.wav')[0]
@@ -246,6 +253,8 @@ class Preprocessor:
         according to the ratio defined in train_val_test_ratio.
         :returns: None
         """
+        logging.info('8 --- Splitting into train, validation and test ---')
+
         validation_size = (1 - self.train_size) / 2
         spectrogram_files = [file for file in os.listdir(self.spectrogram_path) if file.endswith('.png')]
         random.shuffle(spectrogram_files)
@@ -282,6 +291,7 @@ class Preprocessor:
         This function iterates through the segments list and creates individual wav files.
         :returns: None
         """
+        logging.info('6 --- Creating WAV files ---')
         for edf_folder in os.listdir(self.edf_path):
             for index, annotated_segment in enumerate(self.segments_dictionary[edf_folder]):
                 label, signal = annotated_segment

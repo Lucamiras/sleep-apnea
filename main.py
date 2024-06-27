@@ -11,7 +11,7 @@ pre = Preprocessor(
     edf_urls=EDF_URLS,
     rml_urls=RML_URLS,
     data_channels=DATA_CHANNELS,
-    classes=CLASSES
+    classes=CLASSES,
 )
 
 pre.run(download=False)

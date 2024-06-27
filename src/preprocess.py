@@ -29,6 +29,16 @@ class Preprocessor:
         3. Creating segments from timestamps provided in the rml files.
 
         4. Creating spectrogram files and randomly shuffling them into train, validation and test folders.
+
+    There are TWO ways of using this preprocessor: download = False and download = True
+
+    If you choose download = False when calling
+        > Preprocessor().run(download=False)
+    you should have EDF files to process in the folder project_dir > downloads > edf as well as rml. If the files
+    are already in the folder, use the property patient_ids_to_process.
+
+    If you choose download = True, the EDF and RML URL properties must contain valid download URLs for the PSG-Audio
+    dataset.
     """
     def __init__(self,
                  project_dir: str,
@@ -38,7 +48,7 @@ class Preprocessor:
                  classes: dict,
                  sample_rate: int = 48_000,
                  train_size: float = .8,
-                 process_all: any = True):
+                 patient_ids_to_process: list = None):
 
         self.project_dir = project_dir
         self.edf_urls = edf_urls
@@ -47,6 +57,7 @@ class Preprocessor:
         self.classes = classes
         self.sample_rate = sample_rate
         self.train_size = train_size
+        self.patient_ids_to_process = patient_ids_to_process
         self.patient_ids = []
         self.label_dictionary = {}
         self.segments_dictionary = {}
@@ -110,6 +121,21 @@ class Preprocessor:
         :return:
         """
         logging.info('3 --- Organizing downloaded files into folders ---')
+
+        # This block checks if the files I want to process are already in a folder. If yes, it moves the files
+        # into the correct position
+        if self.patient_ids_to_process is not None:
+            for edf_folder in self.patient_ids_to_process:
+                for file in os.listdir(os.path.join(self.edf_path, edf_folder)):
+                    shutil.move(os.path.join(self.edf_path, edf_folder, file), self.edf_path)
+                if os.listdir(os.path.join(self.edf_path, edf_folder)):
+                    os.remove(os.path.join(self.edf_path, edf_folder))
+
+            for rml_folder in self.patient_ids_to_process:
+                for file in os.listdir(os.path.join(self.rml_path, rml_folder)):
+                    shutil.move(os.path.join(self.rml_path, rml_folder, file), self.rml_path)
+                if os.listdir(os.path.join(self.rml_path, rml_folder)):
+                    os.remove(os.path.join(self.rml_path, rml_folder))
 
         edf_folder_contents = [file for file in os.listdir(self.edf_path) if file.endswith('.edf')]
         rml_folder_contents = [file for file in os.listdir(self.rml_path) if file.endswith('.rml')]

@@ -144,6 +144,7 @@ class Preprocessor:
         for patient_id in self.patient_ids:
             os.makedirs(os.path.join(self.edf_path, patient_id), exist_ok=True)
             os.makedirs(os.path.join(self.rml_path, patient_id), exist_ok=True)
+            print(self.patient_ids)
 
         for edf_file in edf_folder_contents:
             src_path = os.path.join(self.edf_path, edf_file)
@@ -318,7 +319,15 @@ class Preprocessor:
         :returns: None
         """
         logging.info('6 --- Creating WAV files ---')
-        for edf_folder in os.listdir(self.edf_path):
+
+        # This block checks if we have selected specific folders to process. If yes, then only those will be used
+        # during the wav file creation process. Else, everything will be used.
+        if self.patient_ids_to_process is not None:
+            folder_list = self.patient_ids_to_process
+        else:
+            folder_list = os.listdir(self.edf_path)
+
+        for edf_folder in folder_list:
             for index, annotated_segment in enumerate(self.segments_dictionary[edf_folder]):
                 label, signal = annotated_segment
                 class_index = self.classes[label]

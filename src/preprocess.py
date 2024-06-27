@@ -11,7 +11,11 @@ import matplotlib.pyplot as plt
 from scipy.io.wavfile import write
 import gc
 import random
+import logging
 
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s',
+                    datefmt='%Y-%m-%d %H:%M:%S')
 
 class Preprocessor:
     """
@@ -25,6 +29,16 @@ class Preprocessor:
         3. Creating segments from timestamps provided in the rml files.
 
         4. Creating spectrogram files and randomly shuffling them into train, validation and test folders.
+
+    There are TWO ways of using this preprocessor: download = False and download = True
+
+    If you choose download = False when calling
+        > Preprocessor().run(download=False)
+    you should have EDF files to process in the folder project_dir > downloads > edf as well as rml. If the files
+    are already in the folder, use the property patient_ids_to_process.
+
+    If you choose download = True, the EDF and RML URL properties must contain valid download URLs for the PSG-Audio
+    dataset.
     """
     def __init__(self,
                  project_dir: str,
@@ -33,7 +47,8 @@ class Preprocessor:
                  data_channels: list,
                  classes: dict,
                  sample_rate: int = 48_000,
-                 train_size: float = .8):
+                 train_size: float = .8,
+                 patient_ids_to_process: list = None):
 
         self.project_dir = project_dir
         self.edf_urls = edf_urls
@@ -42,15 +57,19 @@ class Preprocessor:
         self.classes = classes
         self.sample_rate = sample_rate
         self.train_size = train_size
+        self.patient_ids_to_process = patient_ids_to_process
         self.patient_ids = []
         self.label_dictionary = {}
-        self.segments_list = []
+        self.segments_dictionary = {}
 
     def _create_directory_structure(self) -> None:
         """
         Creates directory structure necessary to download and process data.
         :return: None
         """
+
+        logging.info('1 --- Creating directory structure ---')
+
         self.edf_path: str = os.path.join(self.project_dir, 'downloads', 'edf')
         self.rml_path: str = os.path.join(self.project_dir, 'downloads', 'rml')
         self.audio_path: str = os.path.join(self.project_dir, 'processed', 'audio')
@@ -66,7 +85,7 @@ class Preprocessor:
         Downloads the files specified in the edf and rml urls.
         :return: None
         """
-        print(f"Starting download of {len(self.edf_urls)} EDF files and {len(self.rml_urls)} RML files.")
+        logging.info(f"2 --- Starting download of {len(self.edf_urls)} EDF files and {len(self.rml_urls)} RML files ---")
 
         for url in tqdm(self.edf_urls):
             response = requests.get(url)
@@ -101,6 +120,23 @@ class Preprocessor:
         Moves files into folders by patient id.
         :return:
         """
+        logging.info('3 --- Organizing downloaded files into folders ---')
+
+        # This block checks if the files I want to process are already in a folder. If yes, it moves the files
+        # into the correct position
+        if self.patient_ids_to_process is not None:
+            for edf_folder in self.patient_ids_to_process:
+                for file in os.listdir(os.path.join(self.edf_path, edf_folder)):
+                    shutil.move(os.path.join(self.edf_path, edf_folder, file), self.edf_path)
+                if os.listdir(os.path.join(self.edf_path, edf_folder)):
+                    os.remove(os.path.join(self.edf_path, edf_folder))
+
+            for rml_folder in self.patient_ids_to_process:
+                for file in os.listdir(os.path.join(self.rml_path, rml_folder)):
+                    shutil.move(os.path.join(self.rml_path, rml_folder, file), self.rml_path)
+                if os.listdir(os.path.join(self.rml_path, rml_folder)):
+                    os.remove(os.path.join(self.rml_path, rml_folder))
+
         edf_folder_contents = [file for file in os.listdir(self.edf_path) if file.endswith('.edf')]
         rml_folder_contents = [file for file in os.listdir(self.rml_path) if file.endswith('.rml')]
         self.patient_ids = list(set([uid.split('-')[0] for uid in edf_folder_contents]))
@@ -108,6 +144,7 @@ class Preprocessor:
         for patient_id in self.patient_ids:
             os.makedirs(os.path.join(self.edf_path, patient_id), exist_ok=True)
             os.makedirs(os.path.join(self.rml_path, patient_id), exist_ok=True)
+            print(self.patient_ids)
 
         for edf_file in edf_folder_contents:
             src_path = os.path.join(self.edf_path, edf_file)
@@ -120,7 +157,9 @@ class Preprocessor:
             shutil.move(src=src_path, dst=dst_path)
 
     def _create_label_dictionary(self):
+        logging.info('4 --- Creating label dictionaries ---')
         clip_length = 10
+
         for rml_folder in os.listdir(self.rml_path):
             for file in os.listdir(os.path.join(self.rml_path, rml_folder)):
                 label_path = os.path.join(self.rml_path, rml_folder, file)
@@ -183,26 +222,26 @@ class Preprocessor:
         Load edf files and create segments by timestamps.
         :return:
         """
-        self.segments_list = []
+        logging.info('5 --- Create segments ---')
         clip_length_seconds = 10
 
         for edf_folder in os.listdir(self.edf_path):
-            if edf_folder in self.patient_ids:
-                print(f"Starting to create segments for user {edf_folder}")
-                edf_folder_path = os.path.join(self.edf_path, edf_folder)
-                edf_readout = self._read_out_single_edf_file(edf_folder_path)
+            print(f"Starting to create segments for user {edf_folder}")
+            edf_folder_path = os.path.join(self.edf_path, edf_folder)
+            edf_readout = self._read_out_single_edf_file(edf_folder_path)
+            self.segments_dictionary[edf_folder] = []
 
-                for label in self.label_dictionary[edf_folder]:
-                    label_desc = label[0]
-                    time_stamp = label[1]
-                    start_idx = int(time_stamp * self.sample_rate)
-                    end_idx = int((time_stamp + clip_length_seconds) * self.sample_rate)
-                    segment = edf_readout[start_idx:end_idx]
-                    if len(segment) > 0:
-                        self.segments_list.append((label_desc, segment))
+            for label in self.label_dictionary[edf_folder]:
+                label_desc = label[0]
+                time_stamp = label[1]
+                start_idx = int(time_stamp * self.sample_rate)
+                end_idx = int((time_stamp + clip_length_seconds) * self.sample_rate)
+                segment = edf_readout[start_idx:end_idx]
+                if len(segment) > 0:
+                    self.segments_dictionary[edf_folder].append((label_desc, segment))
 
-                del edf_readout, segment
-                gc.collect()
+            del edf_readout, segment
+            gc.collect()
 
     def _save_spectrogram(self, wav_file_path, dest_path) -> None:
         """
@@ -227,6 +266,8 @@ class Preprocessor:
         """
         Goes through all wav files in the data/processed/audio subfolder and calls the save_spectrogram
         function."""
+        logging.info('7 --- Creating spectrogram files ---')
+
         for index, wav_file in tqdm(enumerate(os.listdir(self.audio_path))):
             wav_file_path = os.path.join(self.audio_path, wav_file)
             spec_file_name = wav_file.split('.wav')[0]
@@ -239,6 +280,8 @@ class Preprocessor:
         according to the ratio defined in train_val_test_ratio.
         :returns: None
         """
+        logging.info('8 --- Splitting into train, validation and test ---')
+
         validation_size = (1 - self.train_size) / 2
         spectrogram_files = [file for file in os.listdir(self.spectrogram_path) if file.endswith('.png')]
         random.shuffle(spectrogram_files)
@@ -275,15 +318,18 @@ class Preprocessor:
         This function iterates through the segments list and creates individual wav files.
         :returns: None
         """
-        for index, annotated_segment in enumerate(self.segments_list):
-            label, signal = annotated_segment
-            class_index = self.classes[label]
-            file_name_wav = f'{index:05d}_{label}_{class_index}.wav'
+        logging.info('6 --- Creating WAV files ---')
 
-            audio_data = np.interp(signal, (signal.min(), signal.max()), (-1, 1))
-            audio_data_pcm = np.int16(audio_data * pcm_rate)
-            wav_path = os.path.join(self.audio_path, file_name_wav)
-            write(wav_path, self.sample_rate, audio_data_pcm)
+        for edf_folder in os.listdir(self.edf_path):
+            for index, annotated_segment in enumerate(self.segments_dictionary[edf_folder]):
+                label, signal = annotated_segment
+                class_index = self.classes[label]
+                file_name_wav = f'{index:05d}_{edf_folder}_{label}_{class_index}.wav'
+
+                audio_data = np.interp(signal, (signal.min(), signal.max()), (-1, 1))
+                audio_data_pcm = np.int16(audio_data * pcm_rate)
+                wav_path = os.path.join(self.audio_path, file_name_wav)
+                write(wav_path, self.sample_rate, audio_data_pcm)
 
     def run(self, download: bool = True) -> None:
         """os.makedirs(self.parquet_path, exist_ok=True)

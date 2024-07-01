@@ -298,22 +298,35 @@ class Preprocessor:
         :returns: None
         """
         logging.info('8 --- Splitting into train, validation and test ---')
+        
         random.seed(42)
         validation_size = (1 - self.train_size) / 2
-        spectrogram_files = [file for file in os.listdir(self.spectrogram_path) if file.endswith('.png')]
-        random.shuffle(spectrogram_files)
-        total_number_of_files = len(spectrogram_files)
+        
+        train_all, validation_all, test_all = [], [], []
 
-        train_index = int(total_number_of_files * self.train_size)  # 80
-        validation_index = int(total_number_of_files * validation_size) + train_index
+        for class_label in self.classes.keys():
+            class_files = [file for file in os.listdir(self.spectrogram_path) 
+                           if file.endswith('.png')
+                           if file.split('_')[2] == class_label]
+            number_of_files = len(class_files)
+            train_index = int(number_of_files * self.train_size)
+            validation_index = int(number_of_files * validation_size) + train_index
+            random.shuffle(class_files)
+            train_files = class_files[:train_index]
+            validation_files = class_files[train_index:validation_index]
+            test_files = class_files[validation_index:]
+            print("NUM OF FILES, TRAIN INDEX, VAL INDEX", number_of_files, train_index, validation_index)
+            train_all.extend(train_files)
+            validation_all.extend(validation_files)
+            test_all.extend(test_files)
 
-        train_files = spectrogram_files[:train_index]
-        validation_files = spectrogram_files[train_index:validation_index]
-        test_files = spectrogram_files[validation_index:]
+        random.shuffle(train_all)
+        random.shuffle(validation_all)
+        random.shuffle(test_all)
 
-        self._move_files(train_files, 'train')
-        self._move_files(validation_files, 'validation')
-        self._move_files(test_files, 'test')
+        self._move_files(train_all, 'train')
+        self._move_files(validation_all, 'validation')
+        self._move_files(test_all, 'test')
 
     def reshuffle_train_val_test(self) -> None:
         """

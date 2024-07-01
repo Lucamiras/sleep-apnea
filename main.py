@@ -19,5 +19,6 @@ pre = Preprocessor(
 
 #pre.get_download_folder_contents()
 pre.run(download=False)
+#pre.get_train_val_test_distributions()
 #print(pre.label_dictionary)
 #print(pre.segments_dictionary)

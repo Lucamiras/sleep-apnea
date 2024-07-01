@@ -15,7 +15,7 @@ pre = Preprocessor(
     ids_to_process=['00000995']
 )
 
-pre.get_download_folder_contents()
-pre.run(download=False)
+#pre.get_download_folder_contents()
+#pre.run(download=False)
 #print(pre.label_dictionary)
 #print(pre.segments_dictionary)

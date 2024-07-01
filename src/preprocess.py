@@ -310,6 +310,44 @@ class Preprocessor:
         self._move_files(validation_files, 'validation')
         self._move_files(test_files, 'test')
 
+    def reshuffle_train_val_test(self) -> None:
+        """
+        In case the earth mover diagram shows distribution imbalance, this function re-shuffles the train, test and
+        validation files.
+        """
+        for folder in os.listdir(self.spectrogram_path):
+            for file in os.listdir(os.path.join(self.spectrogram_path, folder)):
+                src_path = os.path.join(self.spectrogram_path, folder, file)
+                shutil.move(src=src_path, dst=self.spectrogram_path)
+
+        self._train_val_test_split_spectrogram_files()
+
+    def get_train_val_test_distributions(self) -> None:
+        """
+        Print the distributions of labels per train, validation and test.
+        """
+        distributions = {}
+        all_folders = os.listdir(self.spectrogram_path)
+
+        for folder in all_folders:
+            all_files_in_folder = os.listdir(os.path.join(self.spectrogram_path, folder))
+            number_of_files = len(all_files_in_folder)
+            distributions[folder] = {}
+            for file in all_files_in_folder:
+                file_label = file.split('_')[2]
+                if file_label not in distributions[folder]:
+                    distributions[folder][file_label] = 1
+                else:
+                    distributions[folder][file_label] += 1
+
+            for label in distributions[folder]:
+                distributions[folder][label] /= number_of_files
+                distributions[folder][label] = round(distributions[folder][label],2)
+
+        print(distributions)
+
+
+
     def _move_files(self, files, target_folder) -> None:
         """
         Move files to the target folder.

@@ -204,6 +204,7 @@ class Preprocessor:
                 all_events = events_apnea + non_events_apnea
                 all_events = sorted(all_events, key=lambda x: x[1])
 
+                print(f"Found {len(all_events)} events and non-events for {rml_folder}.")
                 self.label_dictionary[rml_folder] = all_events
 
     def _read_out_single_edf_file(self, edf_folder: str) -> np.array:
@@ -293,7 +294,7 @@ class Preprocessor:
         :returns: None
         """
         logging.info('8 --- Splitting into train, validation and test ---')
-
+        random.seed(42)
         validation_size = (1 - self.train_size) / 2
         spectrogram_files = [file for file in os.listdir(self.spectrogram_path) if file.endswith('.png')]
         random.shuffle(spectrogram_files)
@@ -322,7 +323,7 @@ class Preprocessor:
 
         self._train_val_test_split_spectrogram_files()
 
-    def get_train_val_test_distributions(self) -> None:
+    def get_train_val_test_distributions(self) -> dict:
         """
         Print the distributions of labels per train, validation and test.
         """
@@ -342,11 +343,9 @@ class Preprocessor:
 
             for label in distributions[folder]:
                 distributions[folder][label] /= number_of_files
-                distributions[folder][label] = round(distributions[folder][label],2)
+                distributions[folder][label] = round(distributions[folder][label], 2)
 
-        print(distributions)
-
-
+        return distributions
 
     def _move_files(self, files, target_folder) -> None:
         """

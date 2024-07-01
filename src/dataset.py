@@ -6,11 +6,16 @@ import os
 
 
 class SpectrogramDataset(Dataset):
-    def __init__(self, spectrogram_dir, transform=None, num_classes=None):
+    def __init__(self, spectrogram_dir, transform=None, classes: dict = None):
         self.spectrogram_dir = spectrogram_dir
         self.transform = transform
-        self.spectrogram_files = [file for file in os.listdir(spectrogram_dir) if file.endswith('.png')]
-        self.num_classes = num_classes
+        self.classes = classes
+        self.num_classes = len(classes)
+        self.class_names = [key for key, value in self.classes.items()]
+        self.spectrogram_files = [file for file in os.listdir(spectrogram_dir)
+                                  if file.endswith('.png')
+                                  if file.split('_')[2] in self.class_names]
+        print(f"Dataset initialized with these classes: {self.class_names}")
 
     def __len__(self):
         return len(self.spectrogram_files)
@@ -24,6 +29,6 @@ class SpectrogramDataset(Dataset):
         one_hot_label = f.one_hot(torch.tensor(label), num_classes=self.num_classes)
         return image, one_hot_label
 
-
     def _get_label_from_filename(self, file_name):
         return int(file_name.split('.png')[0][-1])
+

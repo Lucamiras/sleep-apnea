@@ -12,9 +12,10 @@ pre = Preprocessor(
     rml_urls=RML_URLS,
     data_channels=DATA_CHANNELS,
     classes=CLASSES,
-    ids_to_ignore=['00001342']
+    ids_to_process=['00001342']
 )
 
+#pre.get_download_folder_contents()
 pre.run(download=False)
-print(pre.label_dictionary)
-print(pre.segments_dictionary)
+#print(pre.label_dictionary)
+#print(pre.segments_dictionary)

@@ -17,6 +17,7 @@ logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S')
 
+
 class Preprocessor:
     """
     This Preprocessor class takes a list of EDF download urls and RML download urls and prepares the files
@@ -40,6 +41,7 @@ class Preprocessor:
     If you choose download = True, the EDF and RML URL properties must contain valid download URLs for the PSG-Audio
     dataset.
     """
+
     def __init__(self,
                  project_dir: str,
                  edf_urls: list,
@@ -48,7 +50,7 @@ class Preprocessor:
                  classes: dict,
                  sample_rate: int = 48_000,
                  train_size: float = .8,
-                 ids_to_ignore: list = None):
+                 ids_to_process: list = None):
 
         self.project_dir = project_dir
         self.edf_urls = edf_urls
@@ -57,10 +59,12 @@ class Preprocessor:
         self.classes = classes
         self.sample_rate = sample_rate
         self.train_size = train_size
-        self.ids_to_ignore = ids_to_ignore
+        self.ids_to_process = ids_to_process
         self.patient_ids = []
         self.label_dictionary = {}
         self.segments_dictionary = {}
+
+        self._create_directory_structure()
 
     def _create_directory_structure(self) -> None:
         """
@@ -70,14 +74,18 @@ class Preprocessor:
 
         logging.info('1 --- Creating directory structure ---')
 
-        self.edf_path: str = os.path.join(self.project_dir, 'downloads', 'edf')
-        self.rml_path: str = os.path.join(self.project_dir, 'downloads', 'rml')
+        self.edf_download_path: str = os.path.join(self.project_dir, 'downloads', 'edf')
+        self.rml_download_path: str = os.path.join(self.project_dir, 'downloads', 'rml')
+        self.edf_preprocess_path: str = os.path.join(self.project_dir, 'preprocess', 'edf')
+        self.rml_preprocess_path: str = os.path.join(self.project_dir, 'preprocess', 'rml')
         self.audio_path: str = os.path.join(self.project_dir, 'processed', 'audio')
         self.spectrogram_path: str = os.path.join(self.project_dir, 'processed', 'spectrogram')
         self.retired_path: str = os.path.join(self.project_dir, 'retired')
 
-        os.makedirs(self.edf_path, exist_ok=True)
-        os.makedirs(self.rml_path, exist_ok=True)
+        os.makedirs(self.edf_download_path, exist_ok=True)
+        os.makedirs(self.rml_download_path, exist_ok=True)
+        os.makedirs(self.edf_preprocess_path, exist_ok=True)
+        os.makedirs(self.rml_preprocess_path, exist_ok=True)
         os.makedirs(self.audio_path, exist_ok=True)
         os.makedirs(self.spectrogram_path, exist_ok=True)
         os.makedirs(self.retired_path, exist_ok=True)
@@ -87,12 +95,13 @@ class Preprocessor:
         Downloads the files specified in the edf and rml urls.
         :return: None
         """
-        logging.info(f"2 --- Starting download of {len(self.edf_urls)} EDF files and {len(self.rml_urls)} RML files ---")
+        logging.info(
+            f"2 --- Starting download of {len(self.edf_urls)} EDF files and {len(self.rml_urls)} RML files ---")
 
         for url in tqdm(self.edf_urls):
             response = requests.get(url)
             file_name = url[-28:].replace('%5B', '[').replace('%5D', ']')
-            file_path = os.path.join(self.edf_path, file_name)
+            file_path = os.path.join(self.edf_download_path, file_name)
             if response.status_code == 200:
                 with open(file_path, "wb") as file:
                     file.write(response.content)
@@ -103,7 +112,7 @@ class Preprocessor:
         for url in tqdm(self.rml_urls):
             response = requests.get(url)
             file_name = url[-19:].replace('%5B', '[').replace('%5D', ']')
-            file_path = os.path.join(self.rml_path, file_name)
+            file_path = os.path.join(self.rml_download_path, file_name)
             if response.status_code == 200:
                 with open(file_path, "wb") as file:
                     file.write(response.content)
@@ -111,13 +120,13 @@ class Preprocessor:
             else:
                 print(f"Failed to download the file. Status code: {response.status_code}")
 
-        if len(self.edf_urls) == len(os.listdir(self.edf_path)):
+        if len(self.edf_urls) == len(os.listdir(self.edf_download_path)):
             print("Successfully downloaded EDF files.")
 
-        if len(self.rml_urls) == len(os.listdir(self.rml_path)):
+        if len(self.rml_urls) == len(os.listdir(self.rml_download_path)):
             print("Successfully downloaded RML files.")
 
-    def _organize_downloads(self):
+    def _move_selected_downloads_to_preprocessing(self):
         """
         Moves files into folders by patient id.
         :return:
@@ -127,32 +136,44 @@ class Preprocessor:
         # This block checks if the files I want to process are already in a folder. If yes, it moves the files
         # into the correct position
 
-        edf_folder_contents = [file for file in os.listdir(self.edf_path) if file.endswith('.edf')]
-        rml_folder_contents = [file for file in os.listdir(self.rml_path) if file.endswith('.rml')]
-        self.patient_ids = list(set([uid.split('-')[0] for uid in edf_folder_contents]))
+        edf_folder_contents = [file for file in os.listdir(self.edf_download_path) if file.endswith('.edf')]
+        rml_folder_contents = [file for file in os.listdir(self.rml_download_path) if file.endswith('.rml')]
 
-        for patient_id in self.patient_ids:
-            os.makedirs(os.path.join(self.edf_path, patient_id), exist_ok=True)
-            os.makedirs(os.path.join(self.rml_path, patient_id), exist_ok=True)
-            print(self.patient_ids)
+        if self.ids_to_process is not None:
+            edf_folder_contents = [file for file in edf_folder_contents if file.split('-')[0] in self.ids_to_process]
+            rml_folder_contents = [file for file in rml_folder_contents if file.split('-')[0] in self.ids_to_process]
+
+        unique_edf_file_ids = [file.split('-')[0] for file in edf_folder_contents]
+        unique_rml_file_ids = [file.split('-')[0] for file in rml_folder_contents]
+
+        assert unique_edf_file_ids == unique_rml_file_ids, ("Some EDF or RML files don't have matching pairs. "
+                                                            "Preprocessing will not be possible.")
+
+        print(f"Preprocessing the following IDs: {unique_edf_file_ids}")
+
+        for unique_edf_file_id in unique_edf_file_ids:
+            os.makedirs(os.path.join(self.edf_preprocess_path, unique_edf_file_id), exist_ok=True)
+
+        for unique_rml_file_id in unique_rml_file_ids:
+            os.makedirs(os.path.join(self.rml_preprocess_path, unique_rml_file_id), exist_ok=True)
 
         for edf_file in edf_folder_contents:
-            src_path = os.path.join(self.edf_path, edf_file)
-            dst_path = os.path.join(self.edf_path, edf_file.split('-')[0], edf_file)
+            src_path = os.path.join(self.edf_download_path, edf_file)
+            dst_path = os.path.join(self.edf_preprocess_path, edf_file.split('-')[0], edf_file)
             shutil.move(src=src_path, dst=dst_path)
 
         for rml_file in rml_folder_contents:
-            src_path = os.path.join(self.rml_path, rml_file)
-            dst_path = os.path.join(self.rml_path, rml_file.split('-')[0], rml_file)
+            src_path = os.path.join(self.rml_download_path, rml_file)
+            dst_path = os.path.join(self.rml_preprocess_path, rml_file.split('-')[0], rml_file)
             shutil.move(src=src_path, dst=dst_path)
 
     def _create_label_dictionary(self):
         logging.info('4 --- Creating label dictionaries ---')
         clip_length = 10
 
-        for rml_folder in os.listdir(self.rml_path):
-            for file in os.listdir(os.path.join(self.rml_path, rml_folder)):
-                label_path = os.path.join(self.rml_path, rml_folder, file)
+        for rml_folder in os.listdir(self.rml_preprocess_path):
+            for file in os.listdir(os.path.join(self.rml_preprocess_path, rml_folder)):
+                label_path = os.path.join(self.rml_preprocess_path, rml_folder, file)
                 domtree = xml.dom.minidom.parse(label_path)
                 group = domtree.documentElement
                 events = group.getElementsByTagName("Event")
@@ -167,7 +188,7 @@ class Preprocessor:
                                             float(clip_length))
                         events_apnea.append(positive_example)
 
-                for i in range(len(events_apnea) -1):
+                for i in range(len(events_apnea) - 1):
                     current_event = events_apnea[i]
                     next_event = events_apnea[i + 1]
                     lower_limit = current_event[1] + current_event[2]
@@ -215,9 +236,9 @@ class Preprocessor:
         logging.info('5 --- Create segments ---')
         clip_length_seconds = 10
 
-        for edf_folder in os.listdir(self.edf_path):
+        for edf_folder in os.listdir(self.edf_preprocess_path):
             print(f"Starting to create segments for user {edf_folder}")
-            edf_folder_path = os.path.join(self.edf_path, edf_folder)
+            edf_folder_path = os.path.join(self.edf_preprocess_path, edf_folder)
             edf_readout = self._read_out_single_edf_file(edf_folder_path)
             self.segments_dictionary[edf_folder] = []
 
@@ -310,7 +331,7 @@ class Preprocessor:
         """
         logging.info('6 --- Creating WAV files ---')
 
-        for edf_folder in os.listdir(self.edf_path):
+        for edf_folder in os.listdir(self.edf_preprocess_path):
             for index, annotated_segment in enumerate(self.segments_dictionary[edf_folder]):
                 label, signal = annotated_segment
                 class_index = self.classes[label]
@@ -321,21 +342,27 @@ class Preprocessor:
                 wav_path = os.path.join(self.audio_path, file_name_wav)
                 write(wav_path, self.sample_rate, audio_data_pcm)
 
-    def _remove_ignored_files(self) -> None:
-        # loop through edf
-        retired_edf_path = os.path.join(self.retired_path, 'edf')
-        retired_rml_path = os.path.join(self.retired_path, 'rml')
+    def get_download_folder_contents(self):
+        edf_folder_contents = os.listdir(self.edf_download_path)
+        rml_folder_contents = os.listdir(self.rml_download_path)
 
-        os.makedirs(retired_edf_path, exist_ok=True)
-        os.makedirs(retired_rml_path, exist_ok=True)
+        if len(edf_folder_contents) != 0:
+            print(f"# --- Found {len(edf_folder_contents)} EDF files with the following ids:")
+            edf_ids = set(
+                [patient_id.split('-')[0] for patient_id in edf_folder_contents if patient_id.endswith('.edf')]
+            )
+            print(edf_ids)
+        else:
+            print("No EDF files found.")
 
-        for edf_folder in self.ids_to_ignore:
-            if edf_folder in os.listdir(self.edf_path):
-                shutil.move(os.path.join(self.edf_path, edf_folder), os.path.join(retired_edf_path, edf_folder))
-
-        for rml_folder in self.ids_to_ignore:
-            if rml_folder in os.listdir(self.rml_path):
-                shutil.move(os.path.join(self.rml_path, rml_folder), os.path.join(retired_rml_path, rml_folder))
+        if len(rml_folder_contents) != 0:
+            print(f"# --- Found {len(rml_folder_contents)} RML files with the following ids:")
+            rml_ids = set(
+                [patient_id.split('-')[0] for patient_id in rml_folder_contents if patient_id.endswith('.rml')]
+            )
+            print(rml_ids)
+        else:
+            print("No RML files found.")
 
     def run(self, download: bool = True) -> None:
         """os.makedirs(self.parquet_path, exist_ok=True)
@@ -343,11 +370,9 @@ class Preprocessor:
         :return: None
         """
         self._create_directory_structure()
-        if self.ids_to_ignore is not None:
-            self._remove_ignored_files()
         if download:
             self._download_data()
-        self._organize_downloads()
+        self._move_selected_downloads_to_preprocessing()
         self._create_label_dictionary()
         self._get_edf_segments_from_labels()
         self._create_wav_data()

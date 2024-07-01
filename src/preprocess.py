@@ -281,11 +281,15 @@ class Preprocessor:
         function."""
         logging.info('7 --- Creating spectrogram files ---')
 
+        retired_audio = os.path.join(self.retired_path, 'audio')
+        os.makedirs(retired_audio, exist_ok=True)
+
         for index, wav_file in tqdm(enumerate(os.listdir(self.audio_path))):
             wav_file_path = os.path.join(self.audio_path, wav_file)
             spec_file_name = wav_file.split('.wav')[0]
             dest_path = os.path.join(self.spectrogram_path, spec_file_name)
             self._save_spectrogram(wav_file_path, dest_path)
+            shutil.move(wav_file_path, os.path.join(retired_audio, wav_file))
 
     def _train_val_test_split_spectrogram_files(self) -> None:
         """

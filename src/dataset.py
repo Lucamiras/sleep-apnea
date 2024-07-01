@@ -7,6 +7,7 @@ import os
 
 class SpectrogramDataset(Dataset):
     def __init__(self, spectrogram_dir, transform=None, classes: dict = None):
+        assert classes is not None, "No classes were selected. No data will be loaded."
         self.spectrogram_dir = spectrogram_dir
         self.transform = transform
         self.classes = classes

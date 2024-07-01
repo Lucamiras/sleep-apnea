@@ -143,11 +143,12 @@ class Preprocessor:
             edf_folder_contents = [file for file in edf_folder_contents if file.split('-')[0] in self.ids_to_process]
             rml_folder_contents = [file for file in rml_folder_contents if file.split('-')[0] in self.ids_to_process]
 
-        unique_edf_file_ids = [file.split('-')[0] for file in edf_folder_contents]
-        unique_rml_file_ids = [file.split('-')[0] for file in rml_folder_contents]
+        unique_edf_file_ids = set([file.split('-')[0] for file in edf_folder_contents])
+        unique_rml_file_ids = set([file.split('-')[0] for file in rml_folder_contents])
 
         assert unique_edf_file_ids == unique_rml_file_ids, ("Some EDF or RML files don't have matching pairs. "
-                                                            "Preprocessing will not be possible.")
+                                                            "Preprocessing will not be possible:"
+                                                            f"{unique_edf_file_ids}, {unique_rml_file_ids}")
 
         print(f"Preprocessing the following IDs: {unique_edf_file_ids}")
 
@@ -364,6 +365,23 @@ class Preprocessor:
         else:
             print("No RML files found.")
 
+    def _collect_processed_raw_files(self):
+        processed_edf_folders = os.listdir(self.edf_preprocess_path)
+        processed_rml_folders = os.listdir(self.rml_preprocess_path)
+
+        for folder in ['edf', 'rml']:
+            os.makedirs(os.path.join(self.retired_path, folder), exist_ok=True)
+
+        for edf_folder in processed_edf_folders:
+            src_path = os.path.join(self.edf_preprocess_path, edf_folder)
+            dst_path = os.path.join(self.retired_path, 'edf')
+            shutil.move(src=src_path, dst=dst_path)
+
+        for rml_folder in processed_rml_folders:
+            src_path = os.path.join(self.rml_preprocess_path, rml_folder)
+            dst_path = os.path.join(self.retired_path, 'rml')
+            shutil.move(src=src_path, dst=dst_path)
+
     def run(self, download: bool = True) -> None:
         """os.makedirs(self.parquet_path, exist_ok=True)
         Runs the preprocessing pipeline.
@@ -376,5 +394,6 @@ class Preprocessor:
         self._create_label_dictionary()
         self._get_edf_segments_from_labels()
         self._create_wav_data()
+        self._collect_processed_raw_files()
         self._create_all_spectrogram_files()
         self._train_val_test_split_spectrogram_files()

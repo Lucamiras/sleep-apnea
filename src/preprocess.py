@@ -279,6 +279,9 @@ class Preprocessor:
         plt.savefig(dest_path, bbox_inches='tight', pad_inches=0)
         plt.close()
 
+    def _mel_spectrogram_with_torch_audio(self):
+        pass
+
     def _create_all_spectrogram_files(self) -> None:
         """
         Goes through all wav files in the data/processed/audio subfolder and calls the save_spectrogram

@@ -4,8 +4,9 @@
 example.py
 main.py
 downloadlinks.txt
-__pycache__
+*__pycache__
 utils/__pycache__
 *.idea
 src/__init__.py
 *src/utils/__pycache/
+*visualization

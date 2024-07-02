@@ -17,9 +17,4 @@ pre = Preprocessor(
     ids_to_process=['00000995']
 )
 
-pre._create_directory_structure()
-pre._move_selected_downloads_to_preprocessing()
-pre._create_label_dictionary()
-pre._get_edf_segments_from_labels()
-pre._create_wav_data()
-pre._collect_processed_raw_files()
+pre.run(download=False)

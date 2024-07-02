@@ -16,6 +16,7 @@ class SpectrogramDataset(Dataset):
         self.spectrogram_files = [file for file in os.listdir(spectrogram_dir)
                                   if file.endswith('.png')
                                   if file.split('_')[2] in self.class_names]
+        self.patient_ids = set([file.split('_')[1] for file in self.spectrogram_files])
         print(f"Dataset initialized with these classes: {self.class_names}")
 
     def __len__(self):

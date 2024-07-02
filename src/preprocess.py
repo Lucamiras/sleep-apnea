@@ -315,7 +315,6 @@ class Preprocessor:
             train_files = class_files[:train_index]
             validation_files = class_files[train_index:validation_index]
             test_files = class_files[validation_index:]
-            print("NUM OF FILES, TRAIN INDEX, VAL INDEX", number_of_files, train_index, validation_index)
             train_all.extend(train_files)
             validation_all.extend(validation_files)
             test_all.extend(test_files)

@@ -6,11 +6,12 @@ import os
 
 
 class SpectrogramDataset(Dataset):
-    def __init__(self, spectrogram_dir, transform=None, classes: dict = None):
+    def __init__(self, spectrogram_dir, transform=None, classes: dict = None, binary_classification: bool = False):
         assert classes is not None, "No classes were selected. No data will be loaded."
         self.spectrogram_dir = spectrogram_dir
         self.transform = transform
         self.classes = classes
+        self.binary_classification = binary_classification
         self.num_classes = len(classes)
         self.class_names = [key for key, value in self.classes.items()]
         self.spectrogram_files = [file for file in os.listdir(spectrogram_dir)
@@ -29,8 +30,11 @@ class SpectrogramDataset(Dataset):
             image = self.transform(image)
         label = self._get_label_from_filename(self.spectrogram_files[idx])
         one_hot_label = f.one_hot(torch.tensor(label), num_classes=self.num_classes)
-        return image, one_hot_label
+        binary_label = torch.tensor(0 if label == 0 else 1)
+        if self.binary_classification:
+            return image, binary_label
+        else:
+            return image, one_hot_label
 
     def _get_label_from_filename(self, file_name):
         return int(file_name.split('.png')[0][-1])
-

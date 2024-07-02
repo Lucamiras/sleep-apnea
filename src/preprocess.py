@@ -49,6 +49,7 @@ class Preprocessor:
                  data_channels: list,
                  classes: dict,
                  sample_rate: int = 48_000,
+                 clip_length: float = 20.0,
                  train_size: float = .8,
                  ids_to_process: list = None):
 
@@ -58,6 +59,7 @@ class Preprocessor:
         self.data_channels = data_channels
         self.classes = classes
         self.sample_rate = sample_rate
+        self.clip_length = clip_length
         self.train_size = train_size
         self.ids_to_process = ids_to_process
         self.patient_ids = []
@@ -170,7 +172,7 @@ class Preprocessor:
 
     def _create_label_dictionary(self):
         logging.info('4 --- Creating label dictionaries ---')
-        clip_length = 10
+        clip_length = self.clip_length
 
         for rml_folder in os.listdir(self.rml_preprocess_path):
             for file in os.listdir(os.path.join(self.rml_preprocess_path, rml_folder)):
@@ -183,11 +185,13 @@ class Preprocessor:
 
                 for event in events:
                     event_type = event.getAttribute('Type')
+                    event_duration = float(event.getAttribute('Duration'))
                     if event_type in self.classes.keys():
-                        positive_example = (str(event_type),
-                                            float(event.getAttribute('Start')),
-                                            float(clip_length))
-                        events_apnea.append(positive_example)
+                        if event_duration <= clip_length:
+                            positive_example = (str(event_type),
+                                                float(event.getAttribute('Start')),
+                                                float(clip_length))
+                            events_apnea.append(positive_example)
 
                 for i in range(len(events_apnea) - 1):
                     current_event = events_apnea[i]
@@ -236,7 +240,7 @@ class Preprocessor:
         :return:
         """
         logging.info('5 --- Create segments ---')
-        clip_length_seconds = 10
+        clip_length_seconds = self.clip_length
 
         for edf_folder in os.listdir(self.edf_preprocess_path):
             print(f"Starting to create segments for user {edf_folder}")

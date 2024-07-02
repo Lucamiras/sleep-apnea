@@ -6,3 +6,6 @@ main.py
 downloadlinks.txt
 __pycache__
 utils/__pycache__
+*.idea
+src/__init__.py
+*src/utils/__pycache/

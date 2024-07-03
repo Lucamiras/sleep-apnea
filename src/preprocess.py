@@ -424,6 +424,7 @@ class Preprocessor:
             for index, (label, signal) in enumerate(data):
                 file_name = f"{index:05d}_{npz_file.split('.npz')[0]}_{label}.wav"
                 write(os.path.join(self.audio_path, file_name), rate=self.sample_rate, data=signal)
+            shutil.move(os.path.join(self.npz_path, npz_file), os.path.join(self.retired_path, npz_file))
 
     def get_download_folder_contents(self):
         edf_folder_contents = os.listdir(self.edf_download_path)

@@ -32,4 +32,4 @@ class SpectrogramDataset(Dataset):
         return image, one_hot_label
 
     def _get_label_from_filename(self, file_name):
-        return self.classes[file_name.split('_')[2]]
+        return self.classes[file_name.split('.png')[0].split('_')[2]]

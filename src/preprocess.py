@@ -49,6 +49,7 @@ class Preprocessor:
                  rml_urls: list,
                  data_channels: list,
                  classes: dict,
+                 edf_step_size: int = 10_000_000,
                  sample_rate: int = 48_000,
                  clip_length: float = 20.0,
                  train_size: float = .8,
@@ -59,6 +60,7 @@ class Preprocessor:
         self.rml_urls = rml_urls
         self.data_channels = data_channels
         self.classes = classes
+        self.edf_step_size = edf_step_size
         self.sample_rate = sample_rate
         self.clip_length = clip_length
         self.train_size = train_size
@@ -72,7 +74,7 @@ class Preprocessor:
     def _create_directory_structure(self) -> None:
         """
         Creates directory structure necessary to download and process data.
-        :return: None
+        :returns: None
         """
 
         logging.info('1 --- Creating directory structure ---')
@@ -98,7 +100,7 @@ class Preprocessor:
     def _download_data(self) -> None:
         """
         Downloads the files specified in the edf and rml urls.
-        :return: None
+        :returns: None
         """
         logging.info(
             f"2 --- Starting download of {len(self.edf_urls)} EDF files and {len(self.rml_urls)} RML files ---")
@@ -134,7 +136,7 @@ class Preprocessor:
     def _move_selected_downloads_to_preprocessing(self):
         """
         Moves files into folders by patient id.
-        :return:
+        :returns:
         """
         logging.info('3 --- Organizing downloaded files into folders ---')
 
@@ -223,7 +225,7 @@ class Preprocessor:
         edf_files: list = sorted([os.path.join(edf_folder, file) for file in os.listdir(edf_folder)])
 
         full_readout: np.ndarray = np.array([])
-        step_size: int = 10_000_000
+        step_size: int = self.edf_step_size
 
         for edf_file in edf_files:
             print(f'Starting readout for file {edf_file}')

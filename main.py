@@ -14,7 +14,7 @@ pre = Preprocessor(
     rml_urls=RML_URLS,
     data_channels=DATA_CHANNELS,
     classes=CLASSES,
-    ids_to_process=['00000995']
+    ids_to_process=['00000995', '00001342']
 )
 
 pre.run(download=False)

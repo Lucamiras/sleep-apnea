@@ -267,7 +267,7 @@ class Preprocessor:
         Goes through the segments dictionary and creates npz files to save to disk.
         :returns: None
         """
-        assert len(self.segments_dictionary) > 0, ("No segments available to save.")
+        assert len(self.segments_dictionary) > 0, "No segments available to save."
         for patient_id in self.segments_dictionary.keys():
             if f"{patient_id}.npz" in os.listdir(self.npz_path):
                 continue
@@ -277,6 +277,22 @@ class Preprocessor:
             arrays = {f"array_{i}": array for i, (_, array) in enumerate(data)}
             labels = np.array([label for label, _ in data])
             np.savez(save_path, labels=labels, **arrays)
+
+    def _load_segments_from_npz(self) -> list:
+        """
+        Load npz files and return labels, values as tuples.
+        :returns: list
+        """
+        assert len(os.listdir(self.npz_path)) > 0, "No npz files to unpack."
+        all_loaded_npz_files = []
+        for npz_file in os.listdir(self.npz_path):
+            load_path = os.path.join(self.npz_path, npz_file)
+            loaded = np.load(load_path, allow_pickle=True)
+            labels = loaded['labels']
+            arrays = [loaded[f"array_{i}"] for i in range(len(labels))]
+            data = list(zip(labels, arrays))
+            all_loaded_npz_files.append(data)
+        return all_loaded_npz_files
 
     def _save_spectrogram(self, wav_file_path, dest_path) -> None:
         """

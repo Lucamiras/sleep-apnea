@@ -6,6 +6,7 @@ import xml.dom.minidom
 import numpy as np
 from tqdm import tqdm
 import librosa
+import librosa.feature
 import noisereduce as nr
 import matplotlib.pyplot as plt
 from scipy.io.wavfile import write
@@ -80,18 +81,18 @@ class Preprocessor:
         self.rml_download_path: str = os.path.join(self.project_dir, 'downloads', 'rml')
         self.edf_preprocess_path: str = os.path.join(self.project_dir, 'preprocess', 'edf')
         self.rml_preprocess_path: str = os.path.join(self.project_dir, 'preprocess', 'rml')
+        self.npz_path: str = os.path.join(self.project_dir, 'preprocess', 'npz')
         self.audio_path: str = os.path.join(self.project_dir, 'processed', 'audio')
         self.spectrogram_path: str = os.path.join(self.project_dir, 'processed', 'spectrogram')
-        self.npz_path: str = os.path.join(self.project_dir, 'processed', 'npz')
         self.retired_path: str = os.path.join(self.project_dir, 'retired')
 
         os.makedirs(self.edf_download_path, exist_ok=True)
         os.makedirs(self.rml_download_path, exist_ok=True)
         os.makedirs(self.edf_preprocess_path, exist_ok=True)
         os.makedirs(self.rml_preprocess_path, exist_ok=True)
+        os.makedirs(self.npz_path, exist_ok=True)
         os.makedirs(self.audio_path, exist_ok=True)
         os.makedirs(self.spectrogram_path, exist_ok=True)
-        os.makedirs(self.npz_path, exist_ok=True)
         os.makedirs(self.retired_path, exist_ok=True)
 
     def _download_data(self) -> None:
@@ -272,45 +273,36 @@ class Preprocessor:
             if f"{patient_id}.npz" in os.listdir(self.npz_path):
                 continue
             data = self.segments_dictionary[patient_id]
-            npz_file_name = f"patient_id.npz"
+            npz_file_name = f"{patient_id}.npz"
             save_path = os.path.join(self.npz_path, npz_file_name)
             arrays = {f"array_{i}": array for i, (_, array) in enumerate(data)}
             labels = np.array([label for label, _ in data])
             np.savez(save_path, labels=labels, **arrays)
 
-    def _load_segments_from_npz(self) -> list:
+    def _load_segments_from_npz(self, npz_file) -> list:
         """
         Load npz files and return labels, values as tuples.
         :returns: list
         """
-        assert len(os.listdir(self.npz_path)) > 0, "No npz files to unpack."
-        all_loaded_npz_files = []
-        for npz_file in os.listdir(self.npz_path):
-            load_path = os.path.join(self.npz_path, npz_file)
-            loaded = np.load(load_path, allow_pickle=True)
-            labels = loaded['labels']
-            arrays = [loaded[f"array_{i}"] for i in range(len(labels))]
-            data = list(zip(labels, arrays))
-            all_loaded_npz_files.append(data)
-        return all_loaded_npz_files
+        load_path = os.path.join(self.npz_path, npz_file)
+        loaded = np.load(load_path, allow_pickle=True)
+        labels = loaded['labels']
+        arrays = [loaded[f"array_{i}"] for i in range(len(labels))]
+        data = list(zip(labels, arrays))
+        return data
 
-    def _save_spectrogram(self, wav_file_path, dest_path) -> None:
+    def _generate_spectrogram(self, wav_path, output_dir) -> None:
         """
         This function takes a single wav file and creates a de-noised spectrogram.
         """
-        # y is the audio signal
-        # sr is the sample rate
-        y, sr = librosa.load(wav_file_path, sr=self.sample_rate)  # retrieve audio signal and sample rate
-        y = y / np.max(np.abs(y))
-        y_denoised = nr.reduce_noise(y, sr)
-        y_amplified = y_denoised * 10
-        d_matrix = librosa.stft(y_amplified)
-        d_decibels = librosa.amplitude_to_db(np.abs(d_matrix), ref=np.max)
+        y, sr = librosa.load(wav_path, sr=self.sample_rate)
+        mel = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=128)
+        mel_db = librosa.power_to_db(mel, ref=np.max)
 
-        plt.figure(figsize=(2, 2))
-        librosa.display.specshow(d_decibels, sr=sr, x_axis='time', y_axis='log')
+        plt.figure(figsize=(4, 4))
+        librosa.display.specshow(mel_db, sr=sr, x_axis='time', y_axis='mel')
         plt.axis('off')
-        plt.savefig(dest_path, bbox_inches='tight', pad_inches=0)
+        plt.savefig(output_dir, bbox_inches='tight', pad_inches=0)
         plt.close()
 
     def _create_all_spectrogram_files(self) -> None:
@@ -323,11 +315,11 @@ class Preprocessor:
         os.makedirs(retired_audio, exist_ok=True)
 
         for index, wav_file in tqdm(enumerate(os.listdir(self.audio_path))):
-            wav_file_path = os.path.join(self.audio_path, wav_file)
+            wav_path = os.path.join(self.audio_path, wav_file)
             spec_file_name = wav_file.split('.wav')[0]
             dest_path = os.path.join(self.spectrogram_path, spec_file_name)
-            self._save_spectrogram(wav_file_path, dest_path)
-            shutil.move(wav_file_path, os.path.join(retired_audio, wav_file))
+            self._generate_spectrogram(wav_path, output_dir=dest_path)
+            shutil.move(wav_path, os.path.join(retired_audio, wav_file))
 
     def _train_val_test_split_spectrogram_files(self) -> None:
         """
@@ -336,34 +328,34 @@ class Preprocessor:
         :returns: None
         """
         logging.info('8 --- Splitting into train, validation and test ---')
-        
         random.seed(42)
-        validation_size = (1 - self.train_size) / 2
-        
-        train_all, validation_all, test_all = [], [], []
+        spectrogram_files = [file for file in os.listdir(self.spectrogram_path) if file.endswith('.png')]
+        number_of_files = len(spectrogram_files)
+        assert number_of_files > 0, "No files found."
+
+        train, validation, test = [], [], []
 
         for class_label in self.classes.keys():
-            class_files = [file for file in os.listdir(self.spectrogram_path) 
-                           if file.endswith('.png')
-                           if file.split('_')[2] == class_label]
-            number_of_files = len(class_files)
-            train_index = int(number_of_files * self.train_size)
-            validation_index = int(number_of_files * validation_size) + train_index
+            class_files = [file for file in spectrogram_files
+                           if file.split('.png')[0].split('_')[2] == class_label]
+            number_of_files_in_class = len(class_files)
             random.shuffle(class_files)
-            train_files = class_files[:train_index]
-            validation_files = class_files[train_index:validation_index]
-            test_files = class_files[validation_index:]
-            train_all.extend(train_files)
-            validation_all.extend(validation_files)
-            test_all.extend(test_files)
+            train_index = int(np.floor(number_of_files_in_class * self.train_size))
+            validation_index = int(np.floor((number_of_files_in_class - train_index) / 2)) + train_index
+            train_files_in_class = class_files[:train_index]
+            validation_files_in_class = class_files[train_index:validation_index]
+            test_files_in_class = class_files[validation_index:]
+            train.extend(train_files_in_class)
+            validation.extend(validation_files_in_class)
+            test.extend(test_files_in_class)
 
-        random.shuffle(train_all)
-        random.shuffle(validation_all)
-        random.shuffle(test_all)
+        random.shuffle(train)
+        random.shuffle(validation)
+        random.shuffle(test)
 
-        self._move_files(train_all, 'train')
-        self._move_files(validation_all, 'validation')
-        self._move_files(test_all, 'test')
+        self._move_files(train, 'train')
+        self._move_files(validation, 'validation')
+        self._move_files(test, 'test')
 
     def reshuffle_train_val_test(self) -> None:
         """
@@ -416,22 +408,18 @@ class Preprocessor:
 
         print(f'Moved {number_of_files} files into /{target_folder}.')
 
-    def _create_wav_data(self, pcm_rate: int = 32768) -> None:
+    def _save_to_wav(self) -> None:
         """
         This function iterates through the segments list and creates individual wav files.
         :returns: None
         """
         logging.info('6 --- Creating WAV files ---')
-
-        for edf_folder in os.listdir(self.edf_preprocess_path):
-            for index, annotated_segment in enumerate(self.segments_dictionary[edf_folder]):
-                label, signal = annotated_segment
-                file_name_wav = f'{index:05d}_{edf_folder}_{label}.wav'
-
-                audio_data = np.interp(signal, (signal.min(), signal.max()), (-1, 1))
-                audio_data_pcm = np.int16(audio_data * pcm_rate)
-                wav_path = os.path.join(self.audio_path, file_name_wav)
-                write(wav_path, self.sample_rate, audio_data_pcm)
+        assert len(self.npz_path) > 0, "No npz files to process."
+        for npz_file in os.listdir(self.npz_path):
+            data = self._load_segments_from_npz(npz_file=npz_file)
+            for index, (label, signal) in enumerate(data):
+                file_name = f"{index:05d}_{npz_file.split('.npz')[0]}_{label}.wav"
+                write(os.path.join(self.audio_path, file_name), rate=self.sample_rate, data=signal)
 
     def get_download_folder_contents(self):
         edf_folder_contents = os.listdir(self.edf_download_path)
@@ -484,7 +472,7 @@ class Preprocessor:
         self._create_label_dictionary()
         self._get_edf_segments_from_labels()
         self._save_segments_as_npz()
-        # self._create_wav_data()
-        # self._collect_processed_raw_files()
-        # self._create_all_spectrogram_files()
-        # self._train_val_test_split_spectrogram_files()
+        self._save_to_wav()
+        self._collect_processed_raw_files()
+        self._create_all_spectrogram_files()
+        self._train_val_test_split_spectrogram_files()

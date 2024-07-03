@@ -82,6 +82,7 @@ class Preprocessor:
         self.rml_preprocess_path: str = os.path.join(self.project_dir, 'preprocess', 'rml')
         self.audio_path: str = os.path.join(self.project_dir, 'processed', 'audio')
         self.spectrogram_path: str = os.path.join(self.project_dir, 'processed', 'spectrogram')
+        self.npz_path: str = os.path.join(self.project_dir, 'processed', 'npz')
         self.retired_path: str = os.path.join(self.project_dir, 'retired')
 
         os.makedirs(self.edf_download_path, exist_ok=True)
@@ -90,6 +91,7 @@ class Preprocessor:
         os.makedirs(self.rml_preprocess_path, exist_ok=True)
         os.makedirs(self.audio_path, exist_ok=True)
         os.makedirs(self.spectrogram_path, exist_ok=True)
+        os.makedirs(self.npz_path, exist_ok=True)
         os.makedirs(self.retired_path, exist_ok=True)
 
     def _download_data(self) -> None:
@@ -260,6 +262,22 @@ class Preprocessor:
             del edf_readout, segment
             gc.collect()
 
+    def _save_segments_as_npz(self) -> None:
+        """
+        Goes through the segments dictionary and creates npz files to save to disk.
+        :returns: None
+        """
+        assert len(self.segments_dictionary) > 0, ("No segments available to save.")
+        for patient_id in self.segments_dictionary.keys():
+            if f"{patient_id}.npz" in os.listdir(self.npz_path):
+                continue
+            data = self.segments_dictionary[patient_id]
+            npz_file_name = f"patient_id.npz"
+            save_path = os.path.join(self.npz_path, npz_file_name)
+            arrays = {f"array_{i}": array for i, (_, array) in enumerate(data)}
+            labels = np.array([label for label, _ in data])
+            np.savez(save_path, labels=labels, **arrays)
+
     def _save_spectrogram(self, wav_file_path, dest_path) -> None:
         """
         This function takes a single wav file and creates a de-noised spectrogram.
@@ -278,9 +296,6 @@ class Preprocessor:
         plt.axis('off')
         plt.savefig(dest_path, bbox_inches='tight', pad_inches=0)
         plt.close()
-
-    def _mel_spectrogram_with_torch_audio(self):
-        pass
 
     def _create_all_spectrogram_files(self) -> None:
         """
@@ -395,8 +410,7 @@ class Preprocessor:
         for edf_folder in os.listdir(self.edf_preprocess_path):
             for index, annotated_segment in enumerate(self.segments_dictionary[edf_folder]):
                 label, signal = annotated_segment
-                class_index = self.classes[label]
-                file_name_wav = f'{index:05d}_{edf_folder}_{label}_{class_index}.wav'
+                file_name_wav = f'{index:05d}_{edf_folder}_{label}.wav'
 
                 audio_data = np.interp(signal, (signal.min(), signal.max()), (-1, 1))
                 audio_data_pcm = np.int16(audio_data * pcm_rate)
@@ -453,7 +467,8 @@ class Preprocessor:
         self._move_selected_downloads_to_preprocessing()
         self._create_label_dictionary()
         self._get_edf_segments_from_labels()
-        self._create_wav_data()
-        self._collect_processed_raw_files()
-        self._create_all_spectrogram_files()
-        self._train_val_test_split_spectrogram_files()
+        self._save_segments_as_npz()
+        # self._create_wav_data()
+        # self._collect_processed_raw_files()
+        # self._create_all_spectrogram_files()
+        # self._train_val_test_split_spectrogram_files()

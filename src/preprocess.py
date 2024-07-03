@@ -247,7 +247,7 @@ class Preprocessor:
         logging.info('5 --- Create segments ---')
         clip_length_seconds = self.clip_length
 
-        for edf_folder in os.listdir(self.edf_preprocess_path):
+        for edf_folder in self.ids_to_process:
             print(f"Starting to create segments for user {edf_folder}")
             edf_folder_path = os.path.join(self.edf_preprocess_path, edf_folder)
             edf_readout = self._read_out_single_edf_file(edf_folder_path)

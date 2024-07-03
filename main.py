@@ -17,4 +17,6 @@ pre = Preprocessor(
     ids_to_process=['00000995', '00001000']
 )
 
-pre.run(download=False)
+#pre.run(download=False)
+dataset = SpectrogramDataset('data/processed/spectrogram/train', transform=None, classes=CLASSES)
+print(len(dataset))

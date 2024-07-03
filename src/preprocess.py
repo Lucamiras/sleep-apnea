@@ -372,6 +372,7 @@ class Preprocessor:
     def get_train_val_test_distributions(self) -> dict:
         """
         Print the distributions of labels per train, validation and test.
+        :returns: dict
         """
         distributions = {}
         all_folders = os.listdir(self.spectrogram_path)
@@ -396,6 +397,7 @@ class Preprocessor:
     def _move_files(self, files, target_folder) -> None:
         """
         Move files to the target folder.
+        :returns: None
         """
         destination_path = os.path.join(self.spectrogram_path, target_folder)
         os.makedirs(destination_path, exist_ok=True)
@@ -443,7 +445,11 @@ class Preprocessor:
         else:
             print("No RML files found.")
 
-    def _collect_processed_raw_files(self):
+    def _collect_processed_raw_files(self) -> None:
+        """
+        This function moves the processed edf and rml files.
+        :returns: None
+        """
         processed_edf_folders = os.listdir(self.edf_preprocess_path)
         processed_rml_folders = os.listdir(self.rml_preprocess_path)
 

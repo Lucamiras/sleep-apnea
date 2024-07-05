@@ -2,6 +2,7 @@ import sys
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+
 def get_mean_and_std(dataset):
     """
     Calculate the mean and standard deviation of the images in the given dataset.

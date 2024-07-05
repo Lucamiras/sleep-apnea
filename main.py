@@ -5,20 +5,29 @@ from src.utils.globals import (
 )
 import warnings
 import os
+from torchvision import transforms
+from src.utils.imagedata import get_mean_and_std
+import librosa
 
 warnings.filterwarnings('ignore')
 
-pre = Preprocessor(
-    project_dir='data',
-    edf_urls=EDF_URLS,
-    rml_urls=RML_URLS,
-    data_channels=DATA_CHANNELS,
-    classes=CLASSES,
-    ids_to_process=['00000995']
-)
+spectrogram_train_path = os.path.join('data', 'processed', 'spectrogram','train')
+spectrogram_val_path = os.path.join('data', 'processed', 'spectrogram','validation')
+spectrogram_test_path = os.path.join('data', 'processed', 'spectrogram','test')
 
-#pre.run(download=False)
-dataset = SpectrogramDataset('data/processed/spectrogram/train', classes=CLASSES, transform=None)
-print(dataset.get_mean_std())
+num_train_examples = len(os.listdir(spectrogram_train_path))
+num_val_examples = len(os.listdir(spectrogram_val_path))
+num_test_examples = len(os.listdir(spectrogram_test_path))
 
+img_size = (256, 256)
 
+transform_without_normalization = transforms.Compose([
+    transforms.Resize(img_size),
+    transforms.ToTensor()
+    ])
+
+train_data_not_norm = SpectrogramDataset(spectrogram_train_path, transform=transform_without_normalization, classes=CLASSES)
+mean, std = get_mean_and_std(train_data_not_norm)
+mean = list(mean.numpy())
+std = list(std.numpy())
+print(mean, std)

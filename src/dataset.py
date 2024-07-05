@@ -2,6 +2,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader, random_split
 import torch.nn.functional as f
 from PIL import Image
+from tqdm import tqdm
 import os
 
 
@@ -31,5 +32,14 @@ class SpectrogramDataset(Dataset):
         one_hot_label = f.one_hot(torch.tensor(label), num_classes=self.num_classes)
         return image, one_hot_label
 
-    def _get_label_from_filename(self, file_name):
-        return self.classes[file_name.split('.png')[0].split('_')[2]]
+    def _get_label_from_filename(self, file_name) -> list:
+            """
+            Extracts the label from the given file name.
+
+            Args:
+                file_name (str): The name of the file.
+
+            Returns:
+                list: The label corresponding to the file name.
+            """
+            return self.classes[file_name.split('.png')[0].split('_')[2]]

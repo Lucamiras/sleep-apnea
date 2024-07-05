@@ -14,9 +14,11 @@ pre = Preprocessor(
     rml_urls=RML_URLS,
     data_channels=DATA_CHANNELS,
     classes=CLASSES,
-    ids_to_process=['00000995', '00001000']
+    ids_to_process=['00000995']
 )
 
 #pre.run(download=False)
-dataset = SpectrogramDataset('data/processed/spectrogram/train', transform=None, classes=CLASSES)
-print(len(dataset))
+dataset = SpectrogramDataset('data/processed/spectrogram/train', classes=CLASSES, transform=None)
+print(dataset.get_mean_std())
+
+

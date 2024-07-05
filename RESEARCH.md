@@ -15,3 +15,4 @@ Some inspiration was drawn from research papers that attempted similar projects.
 2. [Real-Time Detection of Sleep Apnea Based on Breathing Sounds and Prediction Reinforcement Using Home Noises: Algorithm Development and Validation](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9996414/), 22 February 2023, Vu Linh Le, MA, Daewoo Kim, PhD, Eunsung Cho, MA, Hyeryung Jang, PhD, Roben Delos Reyes, MA, Hyunggug Kim, MA, Dongheon Lee, MA, In-Young Yoon, MD, PhD, Joonki Hong, PhD, and Jeong-Whun Kim, MD, PhD
 3. For audio length: [CLASSIFYING VARIABLE-LENGTH AUDIO FILES WITH
 ALL-CONVOLUTIONAL NETWORKS AND MASKED GLOBAL POOLING](https://arxiv.org/pdf/1607.02857) 2016, Lars Hertel, Huy Phan, and Alfred Mertins
+4. For augmentation: [SpecAugment: A New Data Augmentation Method for Automatic Speec Recognition](https://research.google/blog/specaugment-a-new-data-augmentation-method-for-automatic-speech-recognition/), April 22, 2019, Daniel S. Park & Willian Chan

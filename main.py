@@ -11,4 +11,16 @@ import librosa
 
 warnings.filterwarnings('ignore')
 
-pre = Preprocessor(project_dir='data', edf_urls=EDF_URLS, rml_urls=RML_URLS, data_channels=DATA_CHANNELS, classes=CLASSES, ids_to_process=['00000995'])
+pre = Preprocessor(project_dir='data',
+                   edf_urls=EDF_URLS,
+                   rml_urls=RML_URLS,
+                   data_channels=DATA_CHANNELS,
+                   classes=CLASSES,
+                   ids_to_process=['00000995'],
+                   clip_length=20.0)
+
+pre._create_directory_structure()
+pre._move_selected_downloads_to_preprocessing()
+pre._create_label_dictionary()
+print(pre.label_dictionary)
+

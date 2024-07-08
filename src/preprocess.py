@@ -188,15 +188,26 @@ class Preprocessor:
                 events_apnea = []
                 non_events_apnea = []
 
-                for event in events:
+                for i, event in enumerate(events):
                     event_type = event.getAttribute('Type')
                     event_duration = float(event.getAttribute('Duration'))
-                    if event_type in self.classes.keys():
-                        if event_duration <= clip_length:
-                            positive_example = (str(event_type),
-                                                float(event.getAttribute('Start')),
-                                                float(clip_length))
-                            events_apnea.append(positive_example)
+                    event_start = float(event.getAttribute('Start'))
+                    prev_event_end = float(events[i-1].getAttribute('Start')) + float(events[i-1].getAttribute('Duration')) if i != 0 else 0.0
+                    next_event_start = float(events[i+1].getAttribute('Start')) if i != len(events) -1 else np.inf
+                    if event_type not in self.classes.keys():
+                        continue
+                    if event_duration > clip_length:
+                        continue
+                    start_range = ((event_start + event_duration) - clip_length, event_start)
+                    random_start = np.random.randint(*start_range)
+                    random_end = random_start + event_duration
+                    # if random_start starts after end of previous event
+                    # if random_end is before start of next event
+                    if random_start > prev_event_end and random_end < next_event_start:
+                        apnea_example = (str(event_type),
+                                         float(random_start),
+                                         float(clip_length))
+                        events_apnea.append(apnea_example)
 
                 for i in range(len(events_apnea) - 1):
                     current_event = events_apnea[i]

@@ -500,3 +500,19 @@ class Preprocessor:
             dst_path = os.path.join(self.retired_path, 'rml')
             shutil.move(src=src_path, dst=dst_path)
 
+    def run(self, download: bool = True) -> None:
+        """os.makedirs(self.parquet_path, exist_ok=True)
+        Runs the preprocessing pipeline.
+        :return: None
+        """
+        self._create_directory_structure()
+        if download:
+            self._download_data()
+        self._move_selected_downloads_to_preprocessing()
+        self._create_label_dictionary()
+        self._get_edf_segments_from_labels()
+        self._save_segments_as_npz()
+        self._save_to_wav()
+        self._collect_processed_raw_files()
+        self._create_all_spectrogram_files()
+        self._train_val_test_split_spectrogram_files()

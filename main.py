@@ -15,6 +15,4 @@ pre = Preprocessor(project_dir='data',
                    ids_to_process=['00000995'],
                    clip_length=20.0)
 
-#pre.run(download=False)
-aug = SpecAugmentation('data/processed/spectrogram/train', augmentations=['frequency', 'time'])
-aug.run()
+pre.run(download=False)

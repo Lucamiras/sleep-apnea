@@ -20,5 +20,4 @@ CLASSES = {
     "ObstructiveApnea": 2,
     "MixedApnea": 3,
     "CentralApnea": 4,
-    "Snore": 5,
 }

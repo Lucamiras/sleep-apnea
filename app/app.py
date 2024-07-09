@@ -61,11 +61,10 @@ def preprocess_audio(audio_bytes):
     y, sr = librosa.load(audio_bytes, sr=48_000)
     mel = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=128)
     mel_db = librosa.power_to_db(mel, ref=np.max)
-    plt.figure(figsize=(4, 4))
-    spectrogram_image = librosa.display.specshow(mel_db, sr=sr, x_axis='time', y_axis='mel')
-    plt.axis('off')
-    transformed = transform(spectrogram_image)  # Add batch dimension
-    return transformed
+    image = Image.open(mel_db)
+    image = transform(image)  # Apply the same transformations as during training
+    image = image.unsqueeze(0)
+    return image
 
 x = preprocess_audio('data/retired/audio/00000_00000995_Hypopnea.wav')
 print(x)

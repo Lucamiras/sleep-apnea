@@ -185,48 +185,61 @@ class Preprocessor:
                 domtree = xml.dom.minidom.parse(label_path)
                 group = domtree.documentElement
                 events = group.getElementsByTagName("Event")
+                events = [event for event in events if event.getAttribute('Type') in self.classes.keys()]
                 events_apnea = []
                 non_events_apnea = []
 
-                for i, event in enumerate(events):
+                for i, event in tqdm(enumerate(events)):
+                    # set up important variables
                     event_type = event.getAttribute('Type')
-                    event_duration = float(event.getAttribute('Duration'))
-                    event_start = float(event.getAttribute('Start'))
-                    prev_event_end = float(events[i-1].getAttribute('Start')) + float(events[i-1].getAttribute('Duration')) if i != 0 else 0.0
-                    next_event_start = float(events[i+1].getAttribute('Start')) if i != len(events) -1 else np.inf
+                    start = float(event.getAttribute('Start'))
+                    duration = float(event.getAttribute('Duration'))
+                    end = start + duration
+                    upper = float(events[i+1].getAttribute('Start')) if i != (len(events) - 1) else np.inf
+                    lower = float(events[i-1].getAttribute('Start')) + float(events[i-1].getAttribute('Duration')) \
+                        if i != 0 else 0
+                    cleared = False
+                    buffer_lower = 0
+                    buffer_upper = 0
 
-                    if event_type not in self.classes.keys():
+                    # skip clips that are too short
+                    if upper - lower < (self.clip_length + 10):
                         continue
-                    if event_duration > clip_length:
+
+                    if end > upper:
                         continue
 
-                    start_range = ((event_start + event_duration) - clip_length, event_start)
+                    if start < lower:
+                        continue
 
-                    if (start_range[0]) == int(start_range[1]):
-                        random_start = event_start
-                    else:
-                        random_start = np.random.randint(*start_range)
+                    # generate buffer around the clip and try until there is no overlap
+                    buffer_length = self.clip_length - duration
+                    while not cleared:
+                        buffer = np.random.uniform(0, buffer_length)
+                        buffer_lower = np.round(buffer, 1)
+                        buffer_upper = np.round(buffer_length - buffer_lower, 1)
+                        if start - buffer_lower > lower and end + buffer_upper < upper:
+                            cleared = True
 
-                    random_end = random_start + event_duration
-                    # if random_start starts after end of previous event
-                    # if random_end is before start of next event
-                    if random_start > prev_event_end and random_end < next_event_start:
-                        apnea_example = (str(event_type),
-                                         float(random_start),
-                                         float(clip_length))
-                        events_apnea.append(apnea_example)
+                    # Create positive clip with buffer
+                    clip_start = start - buffer_lower
+                    new_entry = (str(event_type),
+                                 float(clip_start),
+                                 float(self.clip_length))
+                    events_apnea.append(new_entry)
 
-                for i in range(len(events_apnea) - 1):
-                    current_event = events_apnea[i]
-                    next_event = events_apnea[i + 1]
-                    lower_limit = current_event[1] + current_event[2]
-                    upper_limit = next_event[1]
-                    if upper_limit - lower_limit > float(clip_length):
-                        middle_value = (lower_limit + upper_limit) / 2
-                        negative_example = ('NoApnea',
-                                            float(middle_value - (clip_length / 2)),
-                                            float(clip_length))
-                        non_events_apnea.append(negative_example)
+                # generate negative entries
+                for i in range(len(events) - 1):
+                    current_event = events[i]
+                    next_event = events[i + 1]
+                    lower = float(current_event.getAttribute('Start')) + float(current_event.getAttribute('Duration'))
+                    upper = float(next_event.getAttribute('Start'))
+                    if upper - lower > float(self.clip_length):
+                        middle_value = float(lower + upper) / 2
+                        negative_entry = ('NoApnea',
+                                          float(middle_value - (self.clip_length / 2)),
+                                          float(self.clip_length))
+                        non_events_apnea.append(negative_entry)
 
                 all_events = events_apnea + non_events_apnea
                 all_events = sorted(all_events, key=lambda x: x[1])

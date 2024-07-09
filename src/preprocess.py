@@ -194,12 +194,19 @@ class Preprocessor:
                     event_start = float(event.getAttribute('Start'))
                     prev_event_end = float(events[i-1].getAttribute('Start')) + float(events[i-1].getAttribute('Duration')) if i != 0 else 0.0
                     next_event_start = float(events[i+1].getAttribute('Start')) if i != len(events) -1 else np.inf
+
                     if event_type not in self.classes.keys():
                         continue
                     if event_duration > clip_length:
                         continue
+
                     start_range = ((event_start + event_duration) - clip_length, event_start)
-                    random_start = np.random.randint(*start_range)
+
+                    if (start_range[0]) == int(start_range[1]):
+                        random_start = event_start
+                    else:
+                        random_start = np.random.randint(*start_range)
+
                     random_end = random_start + event_duration
                     # if random_start starts after end of previous event
                     # if random_end is before start of next event

@@ -7,14 +7,19 @@ with open('original_data_sources/downloadlinks.txt', 'r') as file:
 
 links = content.split('\n')
 
-ids = []
+ids = [1459, 1419, 1222, 1486, 1163, 1202, 1442, 1398, 1258, 1016, 1453, 1112, 1108, 1305, 1314, 1018, 1284, 1299, 1200, 1396]
 
-for line in links:
-    if 'clean' in line:
-        id = line.split('clean/')[1].split('-')[0]
-        ids.append(id)
+lines = ""
 
-#print(sorted(set(ids)))
-randomly_chosen_ids = np.random.choice(ids, 10)
-print(randomly_chosen_ids)
+for id in ids:
+    for line in links:
+        if 'V3/APNEA_RML_clean' in line and str(id) in line:
+            lines += line + '\n'
 
+for id in ids:
+    for line in links:
+        if 'V3/APNEA_EDF' in line and str(id) in line:
+            lines += line + '\n'
+
+with open('original_data_sources/random_stratified_links.txt', 'w') as file:
+    file.write(lines)

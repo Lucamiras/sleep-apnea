@@ -2,83 +2,60 @@ import streamlit as st
 import librosa
 import librosa.feature
 import torch
-import torch.nn as nn
-import torch.nn.functional as f
 import numpy as np
-from torchvision import transforms
-from PIL import Image
-import matplotlib.pyplot as plt
+import time
 
 
-class CNN(nn.Module):
-    def __init__(self, num_classes, dropout=0.3, input_size=224):
-        super().__init__()
-        self.input_size = input_size
-        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1)
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
-        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1)
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
-        self.fc1 = nn.Linear(128 * int(self.input_size / 2 / 2 / 2) * int(self.input_size / 2 / 2 / 2), 256)
-        self.fc2 = nn.Linear(256, num_classes)
-        self.dropout = nn.Dropout2d(dropout)
-
-    def forward(self, x):
-        x = self.conv1(x)
-        x = f.relu(x)
-        x = self.pool(x)
-        x = self.conv2(x)
-        x = f.relu(x)
-        x = self.pool(x)
-        x = self.dropout(x)
-        x = self.conv3(x)
-        x = f.relu(x)
-        x = self.pool(x)
-        x = self.dropout(x)
-        x = x.view(-1, 128 * int(self.input_size / 2 / 2 / 2) * int(self.input_size / 2 / 2 / 2))  # Flatten
-        x = self.fc1(x)
-        x = f.relu(x)
-        x = self.fc2(x)
-        return x
+# -- | App layout | -- #
+st.title('Deep Sleep Audio Analysis')
+uploaded_file = st.file_uploader('Upload WAV')
 
 
-state_dict_path = 'app/model/model.pth'
-# Load your trained model
-state_dict = torch.load(state_dict_path)
-print(state_dict)
-model = CNN(num_classes=3)  # Instantiate your model
-model.load_state_dict(state_dict)  # Load the saved weights
-model.eval()  # Set the model to evaluation mode
-
-# Define the transformation for the spectrogram
-transform = transforms.Compose([
-    transforms.Resize((224, 224)),  # Adjust size as needed
-    transforms.ToTensor(),
-    transforms.Normalize([0.35885462, 0.11913931, 0.40157405], [0.23603679, 0.10550919, 0.10507757])
-])
+# -- | Functions | -- #
+def load_audio(file):
+    audio, sample_rate = librosa.load(file, sr=None)
+    return audio, sample_rate
 
 
-def preprocess_audio(audio_bytes):
-    y, sr = librosa.load(audio_bytes, sr=48_000)
-    mel = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=128)
+def split_audio(audio, sample_rate, chunk_duration):
+    chunk_length = chunk_duration * sample_rate
+    return [audio[i:i+chunk_length] for i in range(0, len(audio), chunk_length)]
+
+
+def generate_spectrogram(y, sample_rate, n_mels=128):
+    mel = librosa.feature.melspectrogram(y=y, sr=sample_rate, n_mels=n_mels)
     mel_db = librosa.power_to_db(mel, ref=np.max)
-    image = Image.open(mel_db)
-    image = transform(image)  # Apply the same transformations as during training
-    image = image.unsqueeze(0)
-    return image
+    return mel_db
 
-x = preprocess_audio('data/retired/audio/00000_00000995_Hypopnea.wav')
-print(x)
 
-# Streamlit app
-#st.title("Audio Classification App")
-#uploaded_file = st.file_uploader("Choose a WAV file", type="wav")
-#
-#if uploaded_file is not None:
-#    input_tensor = preprocess_audio(uploaded_file)
-#
-#    with torch.no_grad():
-#        output = model(input_tensor)
-#        probabilities = torch.softmax(output, dim=1)
-#
-#    st.write("Classification Probabilities:")
-#    st.write(probabilities)
+def spectrogram_to_tensor(spectrogram):
+    spectrogram = (spectrogram - np.mean(spectrogram)) / np.std(spectrogram)
+    tensor = torch.tensor(spectrogram, dtype=torch.float32)
+    tensor = tensor.unsqueeze(0)
+    return tensor
+
+
+# -- | App logic | -- #
+sliding_window = 5
+step_size = 2
+# first iteration: start 0 + sliding window
+# second iteration: start 2 + sliding window
+# third iteration: start 4
+if uploaded_file:
+    tic = time.time()
+    for i in range(0, 20, step_size):
+        start_index = 0
+        end_index = start_index + sliding_window
+
+    audio, sample_rate = load_audio(uploaded_file)
+    audios = split_audio(audio, sample_rate, sliding_window)
+    mel_dbs = [generate_spectrogram(a, sample_rate) for a in audios]
+    #mel_db = generate_spectrogram(audio, sample_rate)
+    tensors = [spectrogram_to_tensor(mel_db) for mel_db in mel_dbs]
+    toc = time.time()
+    for tensor in tensors:
+        st.write(tensor)
+    st.write(toc - tic)
+
+
+

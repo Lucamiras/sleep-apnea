@@ -12,7 +12,7 @@ class SpectrogramDataset(Dataset):
         self.spectrogram_dir = spectrogram_dir
         self.transform = transform
         self.classes = classes
-        self.num_classes = len(classes)
+        self.num_classes = len(set(classes.values()))
         self.class_names = [key for key, value in self.classes.items()]
         self.spectrogram_files = [file for file in os.listdir(spectrogram_dir)
                                   if file.endswith('.png')

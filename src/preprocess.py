@@ -176,9 +176,9 @@ class Preprocessor:
             dst_path = os.path.join(self.rml_preprocess_path, rml_file.split('-')[0], rml_file)
             shutil.move(src=src_path, dst=dst_path)
 
-
     def _create_label_dictionary(self):
         logging.info('4 --- Creating label dictionaries ---')
+        clip_length = self.clip_length
 
         for rml_folder in os.listdir(self.rml_preprocess_path):
             for file in os.listdir(os.path.join(self.rml_preprocess_path, rml_folder)):
@@ -186,19 +186,50 @@ class Preprocessor:
                 domtree = xml.dom.minidom.parse(label_path)
                 group = domtree.documentElement
                 events = group.getElementsByTagName("Event")
+                events = [event for event in events if event.getAttribute('Type') in self.classes.keys()]
                 events_apnea = []
                 non_events_apnea = []
 
-                for event in events:
+                for i, event in tqdm(enumerate(events)):
+                    # set up important variables
                     event_type = event.getAttribute('Type')
-                    event_duration = float(event.getAttribute('Duration'))
-                    if event_type in self.classes.keys():
-                        if event_duration <= 20:
-                            positive_example = (str(event_type),
-                                                float(event.getAttribute('Start')),
-                                                float(self.clip_length))
-                            events_apnea.append(positive_example)
+                    start = float(event.getAttribute('Start'))
+                    duration = float(event.getAttribute('Duration'))
+                    end = start + duration
+                    upper = float(events[i+1].getAttribute('Start')) if i != (len(events) - 1) else np.inf
+                    lower = float(events[i-1].getAttribute('Start')) + float(events[i-1].getAttribute('Duration')) \
+                        if i != 0 else 0
+                    cleared = False
+                    buffer_lower = 0
+                    buffer_upper = 0
 
+                    # skip clips that are too short
+                    if upper - lower < (self.clip_length + 10):
+                        continue
+
+                    if end > upper:
+                        continue
+
+                    if start < lower:
+                        continue
+
+                    # generate buffer around the clip and try until there is no overlap
+                    buffer_length = self.clip_length - duration
+                    while not cleared:
+                        buffer = np.random.uniform(0, buffer_length)
+                        buffer_lower = np.round(buffer, 1)
+                        buffer_upper = np.round(buffer_length - buffer_lower, 1)
+                        if start - buffer_lower > lower and end + buffer_upper < upper:
+                            cleared = True
+
+                    # Create positive clip with buffer
+                    clip_start = start - buffer_lower
+                    new_entry = (str(event_type),
+                                 float(clip_start),
+                                 float(self.clip_length))
+                    events_apnea.append(new_entry)
+
+                # generate negative entries
                 for i in range(len(events) - 1):
                     current_event = events[i]
                     next_event = events[i + 1]

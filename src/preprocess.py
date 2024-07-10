@@ -333,7 +333,7 @@ class Preprocessor:
         mel_db = librosa.power_to_db(mel, ref=np.max)
 
         plt.figure(figsize=(4, 4))
-        librosa.display.specshow(mel_db, sr=sr, x_axis='time', y_axis='mel')
+        librosa.display.specshow(mel_db, sr=sr, x_axis='time', y_axis='log')
         plt.axis('off')
         plt.savefig(output_dir, bbox_inches='tight', pad_inches=0)
         plt.close()

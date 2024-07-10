@@ -179,7 +179,6 @@ class Preprocessor:
 
     def _create_label_dictionary(self):
         logging.info('4 --- Creating label dictionaries ---')
-        clip_length = self.clip_length
 
         for rml_folder in os.listdir(self.rml_preprocess_path):
             for file in os.listdir(os.path.join(self.rml_preprocess_path, rml_folder)):
@@ -197,20 +196,20 @@ class Preprocessor:
                         if event_duration <= 20:
                             positive_example = (str(event_type),
                                                 float(event.getAttribute('Start')),
-                                                float(clip_length))
+                                                float(self.clip_length))
                             events_apnea.append(positive_example)
 
-                for i in range(len(events_apnea) - 1):
-                    current_event = events_apnea[i]
-                    next_event = events_apnea[i + 1]
-                    lower_limit = current_event[1] + current_event[2]
-                    upper_limit = next_event[1]
-                    if upper_limit - lower_limit > float(clip_length):
-                        middle_value = (lower_limit + upper_limit) / 2
-                        negative_example = ('NoApnea',
-                                            float(middle_value - (clip_length / 2)),
-                                            float(clip_length))
-                        non_events_apnea.append(negative_example)
+                for i in range(len(events) - 1):
+                    current_event = events[i]
+                    next_event = events[i + 1]
+                    lower = float(current_event.getAttribute('Start')) + float(current_event.getAttribute('Duration'))
+                    upper = float(next_event.getAttribute('Start'))
+                    if upper - lower > float(self.clip_length):
+                        middle_value = float(lower + upper) / 2
+                        negative_entry = ('NoApnea',
+                                          float(middle_value - (self.clip_length / 2)),
+                                          float(self.clip_length))
+                        non_events_apnea.append(negative_entry)
 
                 all_events = events_apnea + non_events_apnea
                 all_events = sorted(all_events, key=lambda x: x[1])

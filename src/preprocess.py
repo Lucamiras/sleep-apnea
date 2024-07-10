@@ -13,6 +13,7 @@ from scipy.io.wavfile import write
 import gc
 import random
 import logging
+import pyedflib
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -175,6 +176,7 @@ class Preprocessor:
             dst_path = os.path.join(self.rml_preprocess_path, rml_file.split('-')[0], rml_file)
             shutil.move(src=src_path, dst=dst_path)
 
+
     def _create_label_dictionary(self):
         logging.info('4 --- Creating label dictionaries ---')
         clip_length = self.clip_length
@@ -185,61 +187,30 @@ class Preprocessor:
                 domtree = xml.dom.minidom.parse(label_path)
                 group = domtree.documentElement
                 events = group.getElementsByTagName("Event")
-                events = [event for event in events if event.getAttribute('Type') in self.classes.keys()]
                 events_apnea = []
                 non_events_apnea = []
 
-                for i, event in tqdm(enumerate(events)):
-                    # set up important variables
+                for event in events:
                     event_type = event.getAttribute('Type')
-                    start = float(event.getAttribute('Start'))
-                    duration = float(event.getAttribute('Duration'))
-                    end = start + duration
-                    upper = float(events[i+1].getAttribute('Start')) if i != (len(events) - 1) else np.inf
-                    lower = float(events[i-1].getAttribute('Start')) + float(events[i-1].getAttribute('Duration')) \
-                        if i != 0 else 0
-                    cleared = False
-                    buffer_lower = 0
-                    buffer_upper = 0
+                    event_duration = float(event.getAttribute('Duration'))
+                    if event_type in self.classes.keys():
+                        if event_duration <= clip_length:
+                            positive_example = (str(event_type),
+                                                float(event.getAttribute('Start')),
+                                                float(clip_length))
+                            events_apnea.append(positive_example)
 
-                    # skip clips that are too short
-                    if upper - lower < (self.clip_length + 10):
-                        continue
-
-                    if end > upper:
-                        continue
-
-                    if start < lower:
-                        continue
-
-                    # generate buffer around the clip and try until there is no overlap
-                    buffer_length = self.clip_length - duration
-                    while not cleared:
-                        buffer = np.random.uniform(0, buffer_length)
-                        buffer_lower = np.round(buffer, 1)
-                        buffer_upper = np.round(buffer_length - buffer_lower, 1)
-                        if start - buffer_lower > lower and end + buffer_upper < upper:
-                            cleared = True
-
-                    # Create positive clip with buffer
-                    clip_start = start - buffer_lower
-                    new_entry = (str(event_type),
-                                 float(clip_start),
-                                 float(self.clip_length))
-                    events_apnea.append(new_entry)
-
-                # generate negative entries
-                for i in range(len(events) - 1):
-                    current_event = events[i]
-                    next_event = events[i + 1]
-                    lower = float(current_event.getAttribute('Start')) + float(current_event.getAttribute('Duration'))
-                    upper = float(next_event.getAttribute('Start'))
-                    if upper - lower > float(self.clip_length):
-                        middle_value = float(lower + upper) / 2
-                        negative_entry = ('NoApnea',
-                                          float(middle_value - (self.clip_length / 2)),
-                                          float(self.clip_length))
-                        non_events_apnea.append(negative_entry)
+                for i in range(len(events_apnea) - 1):
+                    current_event = events_apnea[i]
+                    next_event = events_apnea[i + 1]
+                    lower_limit = current_event[1] + current_event[2]
+                    upper_limit = next_event[1]
+                    if upper_limit - lower_limit > float(clip_length):
+                        middle_value = (lower_limit + upper_limit) / 2
+                        negative_example = ('NoApnea',
+                                            float(middle_value - (clip_length / 2)),
+                                            float(clip_length))
+                        non_events_apnea.append(negative_example)
 
                 all_events = events_apnea + non_events_apnea
                 all_events = sorted(all_events, key=lambda x: x[1])
@@ -256,17 +227,23 @@ class Preprocessor:
         edf_files: list = sorted([os.path.join(edf_folder, file) for file in os.listdir(edf_folder)])
 
         full_readout: np.ndarray = np.array([])
-        step_size: int = self.edf_step_size
 
         for edf_file in edf_files:
             print(f'Starting readout for file {edf_file}')
-            raw_edf_file = mne.io.read_raw_edf(edf_file, preload=False)
-            length_of_file = len(raw_edf_file)
-            for sliding_index in tqdm(range(0, length_of_file, step_size)):
-                raw_edf_chunk = raw_edf_file.get_data(picks=['Mic'],
-                                                      start=sliding_index,
-                                                      stop=min((sliding_index + step_size, length_of_file)))
-                full_readout = np.append(full_readout, raw_edf_chunk)
+            f = pyedflib.EdfReader(edf_file)
+            n = f.signals_in_file
+            signal_labels = f.getSignalLabels()
+            sound_data = None
+            for i in np.arange(n):
+                if signal_labels[i] == self.data_channels:
+                    sound_data = f.readSignal(i)
+                    break
+            f._close()
+
+            if sound_data is None:
+                raise ValueError(f"Channel '{self.data_channels}' not found in EDF file")
+            full_readout = np.append(full_readout, sound_data)
+            del f, sound_data
 
         return full_readout
 

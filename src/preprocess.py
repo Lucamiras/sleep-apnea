@@ -194,7 +194,7 @@ class Preprocessor:
                     event_type = event.getAttribute('Type')
                     event_duration = float(event.getAttribute('Duration'))
                     if event_type in self.classes.keys():
-                        if event_duration <= clip_length:
+                        if event_duration <= 20:
                             positive_example = (str(event_type),
                                                 float(event.getAttribute('Start')),
                                                 float(clip_length))

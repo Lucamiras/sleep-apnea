@@ -186,18 +186,18 @@ class Preprocessor:
                 domtree = xml.dom.minidom.parse(label_path)
                 group = domtree.documentElement
                 events = group.getElementsByTagName("Event")
-                events = [event for event in events if event.getAttribute('Type') in self.classes.keys()]
+                events_classes = [event for event in events if event.getAttribute('Type') in self.classes.keys()]
                 events_apnea = []
                 non_events_apnea = []
 
-                for i, event in tqdm(enumerate(events)):
+                for i, event in tqdm(enumerate(events_classes)):
                     # set up important variables
                     event_type = event.getAttribute('Type')
                     start = float(event.getAttribute('Start'))
                     duration = float(event.getAttribute('Duration'))
                     end = start + duration
-                    upper = float(events[i+1].getAttribute('Start')) if i != (len(events) - 1) else np.inf
-                    lower = float(events[i-1].getAttribute('Start')) + float(events[i-1].getAttribute('Duration')) \
+                    upper = float(events_classes[i+1].getAttribute('Start')) if i != (len(events_classes) - 1) else np.inf
+                    lower = float(events_classes[i-1].getAttribute('Start')) + float(events_classes[i-1].getAttribute('Duration')) \
                         if i != 0 else 0
                     cleared = False
                     buffer_lower = 0

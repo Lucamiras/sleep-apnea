@@ -10,9 +10,7 @@ RML_URLS = [
     "https://download.scidb.cn/download?fileId=61a0ca3f89f14b48842ced8b&path=/V3/APNEA_RML_clean/00000995-100507.rml&fileName=00000995-100507.rml",
 ]
 
-DATA_CHANNELS = [
-    'Mic',
-  ]
+DATA_CHANNELS = 'Mic'
 
 CLASSES = {
     "NoApnea": 0,

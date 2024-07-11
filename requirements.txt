@@ -1,5 +1,6 @@
 requests
 mne
+pyedflib
 numpy
 tqdm
 librosa
@@ -7,4 +8,4 @@ matplotlib
 scipy
 torch
 torchvision
-noisereduce
+streamlit

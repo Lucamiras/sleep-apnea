@@ -11,4 +11,3 @@ src/__init__.py
 *src/utils/__pycache/
 *visualization
 *original_data_sources
-*app/model

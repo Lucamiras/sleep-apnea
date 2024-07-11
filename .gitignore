@@ -11,3 +11,4 @@ src/__init__.py
 *src/utils/__pycache/
 *visualization
 *original_data_sources
+app/model/resnet50_state_dict.pth

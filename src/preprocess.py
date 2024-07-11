@@ -273,6 +273,7 @@ class Preprocessor:
             if sound_data is None:
                 raise ValueError(f"Channel '{self.data_channels}' not found in EDF file")
             full_readout = np.append(full_readout, sound_data)
+            print(len(full_readout)/48000)
             del f, sound_data
 
         return full_readout

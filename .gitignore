@@ -10,3 +10,7 @@ utils/__pycache__
 src/__init__.py
 *src/utils/__pycache/
 *visualization
+*app_v1
+*/app_v1/
+webapp
+app/model

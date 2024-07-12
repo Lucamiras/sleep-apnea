@@ -1,54 +1,60 @@
+import torch
+import torch.nn.functional as f
+from torch.utils.data import DataLoader
+from torchvision import transforms
+import librosa
 import numpy as np
 import streamlit as st
+from src.dataset import SpectrogramDataset
+from src.globals import TARGET_SR, CHUNK_DURATION, N_MELS
 import matplotlib.pyplot as plt
+import io
+from PIL import Image
 
 
-def classify_chunk(chunk):
-    classes = ["Apnea", "Hypopnea", "ObstructiveApnea", "NoApnea"]
-    return np.random.choice(classes, p=[0.1, 0.1, 0.1, 0.7])  # Replace with actual model prediction
+def load_audio(file, target_sr=TARGET_SR):
+    audio, sr = librosa.load(file, sr=target_sr)
+    return audio, sr
+
+def split_audio(audio, sr, chunk_duration=CHUNK_DURATION):
+    chunk_length = chunk_duration * sr
+    return [audio[i:i+chunk_length] for i in range(0, len(audio), chunk_length)]
+
+def generate_spectrogram(signal, output_dir) -> None:
+    mel = librosa.feature.melspectrogram(y=signal, sr=TARGET_SR, n_mels=128)
+    mel_db = librosa.power_to_db(mel, ref=np.max)
+    print(mel_db)
+
+    plt.figure(figsize=(4, 4))
+    librosa.display.specshow(mel_db, sr=TARGET_SR, x_axis='time', y_axis='mel')
+    plt.axis('off')
+    plt.savefig(output_dir, bbox_inches='tight', pad_inches=0)
+    plt.close()
 
 
-def count_classifications(classifications) -> int:
-    """
-    This function returns the number of positive classifications.
-    """
-    return len([event for event in classifications if event != 'NoApnea'])
+def create_dataloader_from_chunks(specs, mean, std, size):
+    transform = transforms.Compose([
+        transforms.Resize(size),
+        transforms.ToTensor(),
+        transforms.Normalize(mean, std)
+    ])
+    
+    dataset = SpectrogramDataset(specs, transform=transform)
+    dataloader = DataLoader(dataset, batch_size=len(dataset), shuffle=False)
+    return dataloader
 
+def run_inference(model, dataloader, device):
+    model.eval()
+    all_preds = []
 
-def plot_classifications(classifications, chunk_duration):
-    fig, ax = plt.subplots(figsize=(10, 2))
+    with torch.no_grad():
+        for images in dataloader:
+            images = images.to(device)
 
-    start_times = np.arange(0, len(classifications) * chunk_duration, chunk_duration)
-    colors = {'Apnea': 'yellow', 'Hypopnea': 'orange', 'ObstructiveApnea': 'red', 'NoApnea': 'white'}
+            outputs = model(images)
+            
+            _, preds = torch.max(outputs, 1)
+            st.write(preds)
+            all_preds.extend(preds.cpu().numpy())
 
-    # add a new color patch for each classification
-    for i, classification in enumerate(classifications):
-        if classification != 'NoApnea':
-            ax.add_patch(plt.Rectangle((start_times[i], 0), chunk_duration, 1, color=colors[classification], alpha=0.6))
-
-    # This is the legend
-    handles = [plt.Rectangle((0, 0), 1, 1, color=color) for color in colors.values() if color != 'white']
-    labels = [label for label in colors.keys() if label != 'NoApnea']
-    ax.legend(handles, labels, loc='upper right')
-
-    # this is the plot
-    ax.set_xlim(0, start_times[-1] + chunk_duration)
-    ax.set_ylim(0, 1)
-    ax.set_yticks([])
-    ax.set_xlabel('Time (s)')
-    st.pyplot(fig)
-
-
-def get_ahi(num_classifications):
-    ahi = {
-        'No Apnea': range(0, 5),
-        'Mild apnea': range(5, 15),
-        'Medium apnea': range(15, 30),
-        'Severe apnea': range(30, 10_000)
-    }
-    diagnosis = None
-    for ahi_label, ahi_range in ahi.items():
-        if num_classifications in ahi_range:
-            diagnosis = ahi_label
-
-    return diagnosis
+    return all_preds

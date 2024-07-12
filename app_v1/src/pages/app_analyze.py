@@ -1,6 +1,6 @@
 import librosa
 import streamlit as st
-from app.src.functions import classify_chunk, count_classifications, plot_classifications, get_ahi
+from app_v1.src.functions import classify_chunk, count_classifications, plot_classifications, get_ahi
 
 
 # Placeholder for my classifier
@@ -16,7 +16,6 @@ def main():
         # Load audio file
         audio, sr = librosa.load(uploaded_file)
         duration = librosa.get_duration(y=audio, sr=sr)
-        print(sr)
         input_container.audio(uploaded_file, format='audio/wav')
 
         chunk_duration = input_container.number_input('Chunk duration (seconds)', min_value=1, max_value=int(duration), value=5)
@@ -39,8 +38,8 @@ def main():
         with diag_box:
             st.header("Results")
             col1, col2 = st.columns(2)
-            col1.metric("Number of events", num_classifications)
-            col2.metric("Apnea Hypopnea Index", diagnosis)
+            col1.metric("Number of events", num_classifications, delta=-1)
+            col2.metric("Apnea Hypopnea Index", diagnosis, delta=4)
 
         st.write("Classifications:", classifications)
 

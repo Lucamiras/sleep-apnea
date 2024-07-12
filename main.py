@@ -16,6 +16,7 @@ pre = Preprocessor(project_dir='data',
                    data_channels=DATA_CHANNELS,
                    classes=CLASSES,
                    ids_to_process=['00000995'],
-                   clip_length=20.0)
+                   clip_length=20.0,
+                   sample_rate=22050)
 
 pre.run(download=False)

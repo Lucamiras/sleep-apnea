@@ -1,0 +1,2 @@
+ANALYZE_INFO_TEXT = """
+    *Results will be displayed below. The program will move a sliding window over the audio file, analyze and then aggregate the results. For a longer file, this may take a while.*"""

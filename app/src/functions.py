@@ -10,6 +10,8 @@ from src.globals import TARGET_SR, CHUNK_DURATION, N_MELS
 import matplotlib.pyplot as plt
 import io
 from PIL import Image
+import os
+import plotly.graph_objects as go
 
 
 def load_audio(file, target_sr=TARGET_SR):
@@ -30,7 +32,6 @@ def generate_spectrogram(signal, output_dir) -> None:
     plt.axis('off')
     plt.savefig(output_dir, bbox_inches='tight', pad_inches=0)
     plt.close()
-
 
 def create_dataloader_from_chunks(specs, mean, std, size):
     transform = transforms.Compose([
@@ -54,7 +55,63 @@ def run_inference(model, dataloader, device):
             outputs = model(images)
             
             _, preds = torch.max(outputs, 1)
-            st.write(preds)
             all_preds.extend(preds.cpu().numpy())
 
     return all_preds
+
+def calculate_event_per_hour(count, duration):
+    if duration == 0:
+        return 0
+    return count / duration
+
+def get_ahi_score(count, duration):
+    events_per_hour = calculate_event_per_hour(count, duration)
+    match events_per_hour:
+        case events_per_hour if events_per_hour in range(5):
+            return "None"
+        case events_per_hour if events_per_hour in range(5, 15):
+            return "Mild"
+        case events_per_hour if events_per_hour in range(15, 30):
+            return "Moderate"  
+        case events_per_hour if events_per_hour > 30:
+            return "Severe"
+
+def plot_results_plotly(values, streamlit_container, duration):
+    colors = ['pink', 'purple']
+    labels = ['Hypopnea', 'Obstructive Apnea']
+
+    fig = go.Figure()
+    
+    fig.add_trace(go.Bar(
+        x=[idx for idx, val in enumerate(values) if val == 1],
+        y=[1] * values.count(1),
+        marker=dict(color=colors[0]),
+        name=labels[0],
+        text=['1'] * values.count(1),
+        textposition='inside',
+        textfont=dict(color='white')
+    ))
+
+    fig.add_trace(go.Bar(
+        x=[idx for idx, val in enumerate(values) if val == 2],
+        y=[1] * values.count(2),
+        marker=dict(color=colors[1]),
+        name=labels[1],
+        text=['2'] * values.count(2),
+        textposition='inside',
+        textfont=dict(color='white')
+    ))
+
+    fig.update_layout(
+        title='Bar Chart with Same Height and Different Colors',
+        xaxis=dict(
+            tickvals=list(range(0, duration, 5)),
+            ticktext=[str(i) for i in range(0, duration, 5)]
+        ),
+        xaxis_title='Time',
+        barmode='stack',
+        showlegend=True
+    )
+
+
+    return streamlit_container.plotly_chart(fig)

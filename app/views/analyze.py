@@ -12,11 +12,13 @@ import os
 import numpy as np
 
 
-st.title("Analyze your sleep")
-
+st.header("Analyze your sleep")
+st.sidebar.write("Upload a .wav recording of your sleep. The Deep Sleep analyzer will go through it and provide you with an estimated Apnea-Hypopnea Index (AHI) score.")
 input_container = st.container(border=True)
 results_container = st.container()
 results_1, results_2, results_3 = results_container.columns(3)
+playback_container = st.container()
+playback_1, playback_2 = playback_container.columns(2)
 
 file_uploader = input_container.file_uploader("Upload your sleep data", type=["wav"])
 
@@ -36,8 +38,7 @@ if file_uploader:
     duration_in_minutes = np.round(len(audio) / sr / 60, 1)
     duration_in_hours = np.round(len(audio) / sr / 3600, 1)
 
-    
-    input_container.metric("Audio length (minutes)", int(len(audio) / sr / 60))
+    input_container.metric("Audio length (minutes)", duration_in_minutes)
     
     if len(os.listdir(".temp")) == 0:
         for i, chunk in enumerate(audio_chunks):
@@ -46,11 +47,14 @@ if file_uploader:
     dataloader = create_dataloader_from_chunks(".temp", MEAN, STD, SIZE)
     if analyze_button:
         with st.spinner("Analyzing..."):
-            results = run_inference(model, dataloader, "cpu")
+            results, logits = run_inference(model, dataloader, "cpu")
             results_counter = sum([1 for result in results if result != 0])
+            
             results_1.metric("Total apnea events detected", results_counter)
             results_2.metric("Total apnea events per hour", round(calculate_event_per_hour(results_counter, duration_in_hours), 1))
             results_3.write(f"AHI score:")
             results_3.subheader(get_ahi_score(results_counter, duration_in_hours))
-            #results_container.bar_chart(results, x_label="Time in seconds")
-            plot_results_plotly(results, results_container, int(duration_in_minutes))
+            confidence = probabilities_from_logits(logits)
+            plot_results_plotly(results, results_container, confidence)
+            df = create_dataframe(results, confidence)
+            results_container.dataframe(df)

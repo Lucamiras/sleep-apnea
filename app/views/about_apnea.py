@@ -1,3 +1,3 @@
 import streamlit as st
 
-st.title("About apnea")
+st.header("About apnea")

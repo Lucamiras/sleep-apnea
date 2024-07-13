@@ -1,6 +1,6 @@
 from tqdm import tqdm
 import torch
-from sklearn.metrics import confusion_matrix, f1_score
+from sklearn.metrics import confusion_matrix, f1_score, accuracy_score, precision_score, recall_score
 import numpy as np
 
 
@@ -54,4 +54,11 @@ def eval_model(model, dataloader, criterion, device, cm=False):
     if cm == False:
         return epoch_loss, val_f1
     if cm == True:
-        return epoch_loss, val_f1, confusion_matrix(np.argmax(all_labels, axis=1), all_preds)
+        return (
+            epoch_loss,
+            val_f1,
+            confusion_matrix(np.argmax(all_labels, axis=1), all_preds),
+            accuracy_score(np.argmax(all_labels, axis=1), all_preds),
+            precision_score(np.argmax(all_labels, axis=1), all_preds),
+            recall_score(np.argmax(all_labels, axis=1), all_preds),
+        )

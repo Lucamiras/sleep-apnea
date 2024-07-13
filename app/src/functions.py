@@ -6,12 +6,13 @@ import librosa
 import numpy as np
 import streamlit as st
 from src.dataset import SpectrogramDataset
-from src.globals import TARGET_SR, CHUNK_DURATION, N_MELS
+from src.globals import TARGET_SR, CHUNK_DURATION, AHI, CLASSES
 import matplotlib.pyplot as plt
 import io
 from PIL import Image
 import os
 import plotly.graph_objects as go
+import pandas as pd
 
 
 def load_audio(file, target_sr=TARGET_SR):
@@ -52,66 +53,72 @@ def run_inference(model, dataloader, device):
         for images in dataloader:
             images = images.to(device)
 
-            outputs = model(images)
-            
-            _, preds = torch.max(outputs, 1)
+            logits = model(images)
+            _, preds = torch.max(logits, 1)
             all_preds.extend(preds.cpu().numpy())
 
-    return all_preds
+    return all_preds, logits
+
+def probabilities_from_logits(logits):
+    probs = f.softmax(logits)
+    return [torch.max(p).item() for p in probs]
 
 def calculate_event_per_hour(count, duration):
     if duration == 0:
         return 0
     return count / duration
 
-def get_ahi_score(count, duration):
+def get_ahi_score(count, duration, ahi_index=AHI):
     events_per_hour = calculate_event_per_hour(count, duration)
-    match events_per_hour:
-        case events_per_hour if events_per_hour in range(5):
-            return "None"
-        case events_per_hour if events_per_hour in range(5, 15):
-            return "Mild"
-        case events_per_hour if events_per_hour in range(15, 30):
-            return "Moderate"  
-        case events_per_hour if events_per_hour > 30:
-            return "Severe"
+    if events_per_hour > 120:
+        return "Severe"
+    for ahi_range, ahi_score in ahi_index.items():
+        if events_per_hour in ahi_range:
+            return ahi_score
 
-def plot_results_plotly(values, streamlit_container, duration):
-    colors = ['pink', 'purple']
-    labels = ['Hypopnea', 'Obstructive Apnea']
-
+def plot_results_plotly(values, streamlit_container, confidence):
+    colors = ['white', 'pink', 'purple']
+    bar_colors = [colors[val] for val in values]
     fig = go.Figure()
-    
-    fig.add_trace(go.Bar(
-        x=[idx for idx, val in enumerate(values) if val == 1],
-        y=[1] * values.count(1),
-        marker=dict(color=colors[0]),
-        name=labels[0],
-        text=['1'] * values.count(1),
-        textposition='inside',
-        textfont=dict(color='white')
-    ))
 
-    fig.add_trace(go.Bar(
-        x=[idx for idx, val in enumerate(values) if val == 2],
-        y=[1] * values.count(2),
-        marker=dict(color=colors[1]),
-        name=labels[1],
-        text=['2'] * values.count(2),
-        textposition='inside',
-        textfont=dict(color='white')
-    ))
+    for idx, (val, height) in enumerate(zip(values, confidence)):
+        if val > 0:
+            fig.add_trace(go.Bar(
+                x=[idx],
+                y=[height],
+                marker=dict(color=bar_colors[idx]),
+                showlegend=False,
+                text=str(val),
+                textposition='inside',
+                textfont=dict(color='white')
+            ))
 
     fig.update_layout(
-        title='Bar Chart with Same Height and Different Colors',
+        title='Detected events over time',
         xaxis=dict(
-            tickvals=list(range(0, duration, 5)),
-            ticktext=[str(i) for i in range(0, duration, 5)]
+            tickvals=list(range(0, len(values), 10)),
+            ticktext=[str(i/2) for i in range(0, len(values), 10)]
         ),
-        xaxis_title='Time',
-        barmode='stack',
-        showlegend=True
+        yaxis=dict(range=[0, 1], title='Height'),
+        xaxis_title='Index',
+        yaxis_title='Height',
+        barmode='stack'
     )
 
-
     return streamlit_container.plotly_chart(fig)
+
+def create_playback_snippets(results, chunk_duration=CHUNK_DURATION, classes=CLASSES):
+    labels = [classes[result] for result in results]
+    list_of_snippets = [f"{label} at {i * chunk_duration}" for i, label in enumerate(labels)]
+    return list_of_snippets
+
+def create_dataframe(results, confidence, chunk_duration=CHUNK_DURATION, classes=CLASSES):
+    df = pd.DataFrame()
+    df['time'] = [i * chunk_duration for i in range(len(results))]
+    df['event'] = [classes[result] for result in results]
+    df['confidence'] = [np.round(conf,2) for conf in confidence]
+    return df
+
+
+        
+

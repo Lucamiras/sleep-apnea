@@ -1,7 +1,6 @@
 import streamlit as st
 
 # Page setup
-
 analyze_page = st.Page(
     page="views/analyze.py",
     title="Analyze your sleep",
@@ -31,6 +30,7 @@ pg = st.navigation(
         })
 
 #st.logo("🛌")
+st.title('Deep Sleep')
 st.sidebar.text("Made with <3 by Lucas.")
 
 pg.run()

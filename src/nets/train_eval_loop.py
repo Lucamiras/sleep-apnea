@@ -59,6 +59,6 @@ def eval_model(model, dataloader, criterion, device, cm=False):
             val_f1,
             confusion_matrix(np.argmax(all_labels, axis=1), all_preds),
             accuracy_score(np.argmax(all_labels, axis=1), all_preds),
-            precision_score(np.argmax(all_labels, axis=1), all_preds),
-            recall_score(np.argmax(all_labels, axis=1), all_preds),
+            precision_score(np.argmax(all_labels, axis=1), all_preds, average="macro"),
+            recall_score(np.argmax(all_labels, axis=1), all_preds, average="macro"),
         )

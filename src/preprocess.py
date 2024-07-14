@@ -462,7 +462,7 @@ class Preprocessor:
             data = self._load_segments_from_npz(npz_file=npz_file)
             for index, (label, signal) in enumerate(data):
                 file_name = f"{index:05d}_{npz_file.split('.npz')[0]}_{label}.wav"
-                write(os.path.join(self.audio_path, file_name), rate=self.sample_rate, data=signal.astype(np.int32))
+                write(os.path.join(self.audio_path, file_name), rate=self.sample_rate, data=signal.astype(np.float32))
             shutil.move(os.path.join(self.npz_path, npz_file), os.path.join(self.retired_path, npz_file))
 
     def get_download_folder_contents(self):

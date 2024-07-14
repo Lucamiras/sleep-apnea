@@ -1,0 +1,17 @@
+Collecting nbformat
+  Downloading nbformat-5.10.4-py3-none-any.whl.metadata (3.6 kB)
+Collecting fastjsonschema>=2.15 (from nbformat)
+  Downloading fastjsonschema-2.20.0-py3-none-any.whl.metadata (2.1 kB)
+Requirement already satisfied: jsonschema>=2.6 in /home/luc/anaconda3/envs/sleep-apnea-v2/lib/python3.11/site-packages (from nbformat) (4.23.0)
+Requirement already satisfied: jupyter-core!=5.0.*,>=4.12 in /home/luc/anaconda3/envs/sleep-apnea-v2/lib/python3.11/site-packages (from nbformat) (5.7.2)
+Requirement already satisfied: traitlets>=5.1 in /home/luc/anaconda3/envs/sleep-apnea-v2/lib/python3.11/site-packages (from nbformat) (5.14.3)
+Requirement already satisfied: attrs>=22.2.0 in /home/luc/anaconda3/envs/sleep-apnea-v2/lib/python3.11/site-packages (from jsonschema>=2.6->nbformat) (23.2.0)
+Requirement already satisfied: jsonschema-specifications>=2023.03.6 in /home/luc/anaconda3/envs/sleep-apnea-v2/lib/python3.11/site-packages (from jsonschema>=2.6->nbformat) (2023.12.1)
+Requirement already satisfied: referencing>=0.28.4 in /home/luc/anaconda3/envs/sleep-apnea-v2/lib/python3.11/site-packages (from jsonschema>=2.6->nbformat) (0.35.1)
+Requirement already satisfied: rpds-py>=0.7.1 in /home/luc/anaconda3/envs/sleep-apnea-v2/lib/python3.11/site-packages (from jsonschema>=2.6->nbformat) (0.19.0)
+Requirement already satisfied: platformdirs>=2.5 in /home/luc/anaconda3/envs/sleep-apnea-v2/lib/python3.11/site-packages (from jupyter-core!=5.0.*,>=4.12->nbformat) (4.2.2)
+Downloading nbformat-5.10.4-py3-none-any.whl (78 kB)
+[?25l   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.0/78.5 kB[0m [31m?[0m eta [36m-:--:--[0m[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m78.5/78.5 kB[0m [31m2.4 MB/s[0m eta [36m0:00:00[0m
+[?25hDownloading fastjsonschema-2.20.0-py3-none-any.whl (23 kB)
+Installing collected packages: fastjsonschema, nbformat
+Successfully installed fastjsonschema-2.20.0 nbformat-5.10.4

@@ -6,6 +6,7 @@
       <excludeFolder url="file://$MODULE_DIR$/data" />
       <excludeFolder url="file://$MODULE_DIR$/notes" />
       <excludeFolder url="file://$MODULE_DIR$/visualization" />
+      <excludeFolder url="file://$MODULE_DIR$/app/model" />
     </content>
     <orderEntry type="jdk" jdkName="sleep-noise" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />

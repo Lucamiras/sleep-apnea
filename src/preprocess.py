@@ -248,6 +248,42 @@ class Preprocessor:
                 print(f"Found {len(all_events)} events and non-events for {rml_folder}.")
                 self.label_dictionary[rml_folder] = all_events
 
+    def _create_sequential_label_dictionary(self):
+        for rml_folder in os.listdir(self.rml_preprocess_path):
+            for file in os.listdir(os.path.join(self.rml_preprocess_path, rml_folder)):
+                label_path = os.path.join(self.rml_preprocess_path, rml_folder, file)
+                domtree = xml.dom.minidom.parse(label_path)
+                group = domtree.documentElement
+                events = group.getElementsByTagName('Event')
+                last_event_timestamp = int(events[-1].getAttribute('Start'))
+                segment_duration = 30
+                events_timestamps = [
+                    (float(event.getAttribute('Start')),
+                     float(event.getAttribute('Duration')),
+                     event.getAttribute('Type')) for event in events
+                    if event.getAttribute('Type') in self.classes.keys()
+                ]
+                all_events = []
+                for segment_start in range(0, last_event_timestamp, segment_duration):
+                    segment_end = segment_start + segment_duration
+                    label = 'NoApnea'
+                    for timestamp in events_timestamps:
+                        start = timestamp[0]
+                        end = start + timestamp[1]
+                        event_type = timestamp[2]
+                        if self._overlaps(segment_start, segment_end, start, end):
+                            label = event_type
+                            break
+                    new_entry = (str(label),
+                                 float(segment_start),
+                                 float(segment_duration))
+                    all_events.append(new_entry)
+                print(f"Found {len(all_events)} events and non-events for {rml_folder}.")
+                self.label_dictionary[rml_folder] = all_events
+
+    def _overlaps(self, segment_start, segment_end, start, end):
+        return segment_start < end and segment_end > start
+
     def _read_out_single_edf_file(self, edf_folder: str) -> np.array:
         """
         Reads out all files from a single edf directory and concatenates the channel information
@@ -517,7 +553,7 @@ class Preprocessor:
         if download:
             self._download_data()
         self._move_selected_downloads_to_preprocessing()
-        self._create_label_dictionary()
+        self._create_sequential_label_dictionary()
         self._get_edf_segments_from_labels()
         self._save_segments_as_npz()
         self._save_to_wav()

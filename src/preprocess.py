@@ -255,7 +255,7 @@ class Preprocessor:
                 domtree = xml.dom.minidom.parse(label_path)
                 group = domtree.documentElement
                 events = group.getElementsByTagName('Event')
-                last_event_timestamp = int(events[-1].getAttribute('Start'))
+                last_event_timestamp = int(np.round(events[-1].getAttribute('Start'), 0))
                 segment_duration = 30
                 events_timestamps = [
                     (float(event.getAttribute('Start')),

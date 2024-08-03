@@ -13,6 +13,7 @@ from PIL import Image
 import os
 import plotly.graph_objects as go
 import pandas as pd
+import time
 
 
 def load_audio(file, target_sr=TARGET_SR):
@@ -69,11 +70,12 @@ def calculate_event_per_hour(count, duration):
     return count / duration
 
 def get_ahi_score(count, duration, ahi_index=AHI):
+    print("AHI score called")
     events_per_hour = calculate_event_per_hour(count, duration)
     if events_per_hour > 120:
         return "Severe"
     for ahi_range, ahi_score in ahi_index.items():
-        if events_per_hour in ahi_range:
+        if int(events_per_hour) in ahi_range:
             return ahi_score
 
 def plot_results_plotly(values, streamlit_container, confidence):
@@ -82,16 +84,15 @@ def plot_results_plotly(values, streamlit_container, confidence):
     fig = go.Figure()
 
     for idx, (val, height) in enumerate(zip(values, confidence)):
-        if val > 0:
-            fig.add_trace(go.Bar(
-                x=[idx],
-                y=[height],
-                marker=dict(color=bar_colors[idx]),
-                showlegend=False,
-                text=str(val),
-                textposition='inside',
-                textfont=dict(color='white')
-            ))
+        fig.add_trace(go.Bar(
+            x=[idx],
+            y=[height] if val > 0 else [0],
+            marker=dict(color=bar_colors[idx]),
+            showlegend=False,
+            text=str(val),
+            textposition='inside' if val > 0 else 'none',
+            textfont=dict(color='white' if val > 0 else 'black')
+        ))
 
     fig.update_layout(
         title='Detected events over time',
@@ -118,6 +119,25 @@ def create_dataframe(results, confidence, chunk_duration=CHUNK_DURATION, classes
     df['event'] = [classes[result] for result in results]
     df['confidence'] = [np.round(conf,2) for conf in confidence]
     return df
+
+def render_progress_bar(duration_in_minutes, streamlit_container):
+    complete = False
+    expected_number_of_chunks = int(duration_in_minutes * 2) # 120
+    progress_text = "Transforming audio ... "
+    complete_text = "Done!"
+    my_bar = streamlit_container.progress(0, text=progress_text)
+    while not complete:
+        time.sleep(0.01)
+        progress = len(os.listdir('.temp'))
+        progress_percent = int((100 / expected_number_of_chunks) * progress)
+        my_bar.progress(progress_percent, text=progress_text)
+        if progress == expected_number_of_chunks:
+            complete = True
+    my_bar.progress(100, text=complete_text)
+    time.sleep(1)
+    my_bar.empty()
+
+    
 
 
         

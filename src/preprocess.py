@@ -553,7 +553,7 @@ class Preprocessor:
         if download:
             self._download_data()
         self._move_selected_downloads_to_preprocessing()
-        self._create_sequential_label_dictionary()
+        self._create_label_dictionary()
         self._get_edf_segments_from_labels()
         self._save_segments_as_npz()
         self._save_to_wav()

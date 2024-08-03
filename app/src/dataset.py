@@ -32,7 +32,7 @@ class SpectrogramDataset(Dataset):
     def __init__(self, spectrogram_dir, transform=None):
         self.spectrogram_dir = spectrogram_dir
         self.transform = transform
-        self.spectrogram_files = [file for file in os.listdir(spectrogram_dir)]
+        self.spectrogram_files = sorted([file for file in os.listdir(spectrogram_dir)])
 
     def __len__(self):
         return len(self.spectrogram_files)

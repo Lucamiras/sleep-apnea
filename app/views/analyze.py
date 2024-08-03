@@ -20,7 +20,7 @@ results_1, results_2, results_3 = results_container.columns(3)
 playback_container = st.container()
 playback_1, playback_2 = playback_container.columns(2)
 
-file_uploader = input_container.file_uploader("Upload your sleep data", type=["wav"])
+file_uploader = input_container.file_uploader("Upload your recording here", type=["wav"])
 
 model = models.resnet50(pretrained=True)
 model.fc = torch.nn.Linear(2048, 3)
@@ -40,9 +40,14 @@ if file_uploader:
 
     input_container.metric("Audio length (minutes)", duration_in_minutes)
     
+    if len(os.listdir(".temp")) != 0:
+        for file in os.listdir(".temp"):
+            os.remove(os.path.join(".temp",file))
+                      
     if len(os.listdir(".temp")) == 0:
         for i, chunk in enumerate(audio_chunks):
             generate_spectrogram(chunk, f".temp/output_{i}.png")
+                      
     # Now we perform the classification
     dataloader = create_dataloader_from_chunks(".temp", MEAN, STD, SIZE)
     if analyze_button:

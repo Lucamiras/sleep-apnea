@@ -12,9 +12,16 @@ recordings.
 
 ## Outcome
 Using various techniques such as data augmentation with ambient background noises, pre-trained CNNs (ResNet50 and ConvNext),
-I achieved a validation f1 score of **0.74 on two classes** (no apnea / Hypopnea + Obstructive Apnea), and a validation f1 score of **0.62 on three classes** (No apnea / Hypopnea / Obstructive Apnea).
-Central and Mixed Apnea were removed as classes due to severe class imbalance.
-The best performance was achieved with a pretrained ConvNext with the final layer unfrozen.
+- I achieved a validation f1 score of **0.8 on two classes** (No Apnea | Obstructive Apnea), and a validation f1 score of **0.67 on three classes** (No Apnea | Hypopnea | Obstructive Apnea).
+- **Central and Mixed Apnea were removed** as classes due to severe class imbalance.
+- The **best performance** was achieved with a pretrained **ConvNext** with the final layer unfrozen.
+
+| Model | num_classes | val_f1 |
+|-|-|-|
+| Baseline CNN | 2 (No apnea, Obstructive apnea) | 0.76 |
+| ConvNext | 2 (No apnea, Obstructive apnea) | 0.8 |
+| Baseline CNN | 3 (No apnea, Hypopnea, Obstructive Apnea) | 0.62 |
+| ConvNext | 3 (No apnea, Hypopnea, Obstructive Apnea) | 0.67 |
 
 ## Background
 The sleep apnea syndrome is a chronic condition that affects quality of life and increases the risk 
@@ -78,6 +85,7 @@ A convolutional neural network architecture will be used to classify the spectro
 
 ## Future Work
 This prototype will need further improvement before it can be used in at-home use on a smartphone.
+- **Pre-trained models in domain**: It could be beneficial to attempt using pre-trained models that were specifically trained with breathing or even sleeping sounds. The model landscape in that domain is sparse, but there are a few promising examples.
 - **Performance Improvement**: Further signals need to be extracted from the audio signals to improve model performance.
 - **Model Quantization**: Quantize the final model to allow it to run on mobile devices.
 - **Real-time Analysis**: Implement real-time apnea detection using smartphone microphones.

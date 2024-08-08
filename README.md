@@ -16,12 +16,12 @@ Using various techniques such as data augmentation with ambient background noise
 - **Central and Mixed Apnea were removed** as classes due to severe class imbalance.
 - The **best performance** was achieved with a pretrained **ConvNext** with the final layer unfrozen.
 
-| Model | num_classes | val_f1 |
+| Model | num_classes | test_f1 |
 |-|-|-|
 | Baseline CNN | 2 (No apnea, Obstructive apnea) | 0.76 |
-| ConvNext | 2 (No apnea, Obstructive apnea) | 0.8 |
-| Baseline CNN | 3 (No apnea, Hypopnea, Obstructive Apnea) | 0.62 |
-| ConvNext | 3 (No apnea, Hypopnea, Obstructive Apnea) | 0.67 |
+| ConvNext | 2 (No apnea, Obstructive apnea) | 0.81 |
+| Baseline CNN | 3 (No apnea, Hypopnea, Obstructive Apnea) | 0.57 |
+| ConvNext | 3 (No apnea, Hypopnea, Obstructive Apnea) | 0.65 |
 
 ## Background
 The sleep apnea syndrome is a chronic condition that affects quality of life and increases the risk 

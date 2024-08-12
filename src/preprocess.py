@@ -53,6 +53,7 @@ class Preprocessor:
                  edf_step_size: int = 10_000_000,
                  sample_rate: int = 48_000,
                  clip_length: float = 20.0,
+                 clip_step_size: int = 5,
                  train_size: float = .8,
                  ids_to_process: list = None):
 
@@ -64,6 +65,7 @@ class Preprocessor:
         self.edf_step_size = edf_step_size
         self.sample_rate = sample_rate
         self.clip_length = clip_length
+        self.clip_step_size = clip_step_size
         self.train_size = train_size
         self.ids_to_process = ids_to_process
         self.patient_ids = []
@@ -256,7 +258,8 @@ class Preprocessor:
                 group = domtree.documentElement
                 events = group.getElementsByTagName('Event')
                 last_event_timestamp = int(float(events[-1].getAttribute('Start')))
-                segment_duration = 30
+                segment_duration = self.clip_length
+                step_size = self.clip_step_size
                 events_timestamps = [
                     (float(event.getAttribute('Start')),
                      float(event.getAttribute('Duration')),
@@ -264,7 +267,7 @@ class Preprocessor:
                     if event.getAttribute('Type') in self.classes.keys()
                 ]
                 all_events = []
-                for segment_start in range(0, last_event_timestamp, segment_duration):
+                for segment_start in range(0, last_event_timestamp, step_size):
                     segment_end = segment_start + segment_duration
                     label = 'NoApnea'
                     for timestamp in events_timestamps:
@@ -553,7 +556,8 @@ class Preprocessor:
         if download:
             self._download_data()
         self._move_selected_downloads_to_preprocessing()
-        self._create_label_dictionary()
+        self._create_sequential_label_dictionary()
+        # self._create_label_dictionary()
         self._get_edf_segments_from_labels()
         self._save_segments_as_npz()
         self._save_to_wav()

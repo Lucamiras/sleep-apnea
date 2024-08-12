@@ -19,3 +19,6 @@ CLASSES = {
     "MixedApnea": 3,
     "CentralApnea": 4,
 }
+
+LEARNING_RATE = 0.001
+NUM_EPOCHS = 20

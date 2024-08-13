@@ -379,7 +379,7 @@ class Preprocessor:
         mel = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=128)
         mel_db = librosa.power_to_db(mel, ref=np.max)
 
-        plt.figure(figsize=(4, 4))
+        plt.figure()
         librosa.display.specshow(mel_db, sr=sr, x_axis='time', y_axis='mel')
         plt.axis('off')
         plt.savefig(output_dir, bbox_inches='tight', pad_inches=0)

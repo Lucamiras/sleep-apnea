@@ -52,7 +52,7 @@ class Preprocessor:
                  classes: dict,
                  edf_step_size: int = 10_000_000,
                  sample_rate: int = 48_000,
-                 clip_length: float = 20.0,
+                 clip_length: int = 20,
                  clip_step_size: int = 5,
                  train_size: float = .8,
                  ids_to_process: list = None):
@@ -283,6 +283,42 @@ class Preprocessor:
                     all_events.append(new_entry)
                 print(f"Found {len(all_events)} events and non-events for {rml_folder}.")
                 self.label_dictionary[rml_folder] = all_events
+
+    def _create_sliding_window_label_dictionary(self):
+        for rml_folder in os.listdir(self.rml_preprocess_path):
+            for file in os.listdir(os.path.join(self.rml_preprocess_path, rml_folder)):
+                label_path = os.path.join(self.rml_preprocess_path, rml_folder, file)
+                domtree = xml.dom.minidom.parse(label_path)
+                group = domtree.documentElement
+                events = group.getElementsByTagName("Event")
+                events_classes = [event for event in events if event.getAttribute('Type') in self.classes.keys()]
+                events_apnea = []
+                non_events_apnea = []
+
+                for i, event in tqdm(enumerate(events_classes)):
+                    event_type = event.getAttribute('Type')
+                    start = float(event.getAttribute('Start'))
+                    duration = float(event.getAttribute('Duration'))
+                    end = start + duration
+                    counter = 0
+                    for step in range(0, self.clip_length, self.clip_step_size):
+                        lower_bound = end - self.clip_length + step
+                        upper_bound = end + step
+                        if lower_bound > start:
+                            continue
+                        new_entry = (
+                            str(event_type),
+                            float(lower_bound),
+                            float(self.clip_length)
+                        )
+                        events_apnea.append(new_entry)
+                        counter += 1
+
+                    all_events = events_apnea + non_events_apnea
+                    all_events = sorted(all_events, key=lambda x: x[1])
+
+                    print(f"Found {len(all_events)} events and non-events for {rml_folder}.")
+                    self.label_dictionary[rml_folder] = all_events
 
     def _overlaps(self, segment_start, segment_end, start, end):
         return segment_start < end and segment_end > start
@@ -547,7 +583,12 @@ class Preprocessor:
             dst_path = os.path.join(self.retired_path, 'rml')
             shutil.move(src=src_path, dst=dst_path)
 
-    def run(self, download: bool = True) -> None:
+    def run(self,
+            download: bool = False,
+            dictionary: bool = False,
+            segments: bool = False,
+            create_files: bool = False,
+            shuffle: bool = False) -> None:
         """os.makedirs(self.parquet_path, exist_ok=True)
         Runs the preprocessing pipeline.
         :return: None
@@ -556,11 +597,16 @@ class Preprocessor:
         if download:
             self._download_data()
         self._move_selected_downloads_to_preprocessing()
-        self._create_sequential_label_dictionary()
-        # self._create_label_dictionary()
-        self._get_edf_segments_from_labels()
-        self._save_segments_as_npz()
-        self._save_to_wav()
-        self._collect_processed_raw_files()
-        self._create_all_spectrogram_files()
-        self._train_val_test_split_spectrogram_files()
+        if dictionary:
+            # self._create_sequential_label_dictionary()
+            # self._create_label_dictionary()
+            self._create_sliding_window_label_dictionary()
+        if segments:
+            self._get_edf_segments_from_labels()
+        if create_files:
+            self._save_segments_as_npz()
+            self._save_to_wav()
+            self._collect_processed_raw_files()
+            self._create_all_spectrogram_files()
+        if shuffle:
+            self._train_val_test_split_spectrogram_files()

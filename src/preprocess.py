@@ -594,19 +594,25 @@ class Preprocessor:
         :return: None
         """
         self._create_directory_structure()
+
         if download:
             self._download_data()
+
         self._move_selected_downloads_to_preprocessing()
+
         if dictionary:
             # self._create_sequential_label_dictionary()
             # self._create_label_dictionary()
             self._create_sliding_window_label_dictionary()
+
         if segments:
             self._get_edf_segments_from_labels()
+
         if create_files:
             self._save_segments_as_npz()
             self._save_to_wav()
             self._collect_processed_raw_files()
             self._create_all_spectrogram_files()
+
         if shuffle:
             self._train_val_test_split_spectrogram_files()

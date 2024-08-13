@@ -314,11 +314,36 @@ class Preprocessor:
                         events_apnea.append(new_entry)
                         counter += 1
 
-                    all_events = events_apnea + non_events_apnea
-                    all_events = sorted(all_events, key=lambda x: x[1])
+                events_found = len(events_apnea)
+                non_events_counter = 0
 
-                    print(f"Found {len(all_events)} events and non-events for {rml_folder}.")
-                    self.label_dictionary[rml_folder] = all_events
+                for i in range(1, len(events_apnea)):
+                    current_event = events_apnea[i]
+                    previous_event = events_apnea[i - 1]
+                    lower_bound = previous_event[1] + previous_event[2]
+                    upper_bound = current_event[1]
+                    available_time = upper_bound - lower_bound
+                    if available_time <= self.clip_length:
+                        continue
+                    number_of_samples = int(available_time / self.clip_length)
+                    for j in range(number_of_samples):
+                        start = lower_bound
+                        new_entry = (
+                            str("NoApnea"),
+                            float(start),
+                            float(self.clip_length)
+                        )
+                        lower_bound += self.clip_length
+                        non_events_apnea.append(new_entry)
+                        non_events_counter += 1
+                    if non_events_counter >= events_found:
+                        break
+
+                all_events = events_apnea + non_events_apnea
+                all_events = sorted(all_events, key=lambda x: x[1])
+
+                print(f"Found {len(all_events)} events and non-events for {rml_folder}.")
+                self.label_dictionary[rml_folder] = all_events
 
     def _overlaps(self, segment_start, segment_end, start, end):
         return segment_start < end and segment_end > start

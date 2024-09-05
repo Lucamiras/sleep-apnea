@@ -22,8 +22,7 @@ pre = Preprocessor(project_dir='data',
 
 pre.run(download=False,
         dictionary=True,
-        segments=False,
-        create_files=False,
-        shuffle=False)
+        segments=True,
+        create_files=True)
 print(pre.label_dictionary)
 print(len(pre.label_dictionary['00000995']))

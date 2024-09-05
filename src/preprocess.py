@@ -176,7 +176,11 @@ class Preprocessor:
             dst_path = os.path.join(self.rml_preprocess_path, rml_file.split('-')[0], rml_file)
             shutil.move(src=src_path, dst=dst_path)
 
-    def _create_sequential_label_dictionary(self, rml_folder):
+    def _create_sequential_label_dictionary(self, rml_folder) -> None:
+        """
+        This function goes through the EDF file in chunks of a determined size, i.e. 30 seconds,
+        and labels each chunk according to the provided RML file.
+        """
         for file in os.listdir(os.path.join(self.rml_preprocess_path, rml_folder)):
             label_path = os.path.join(self.rml_preprocess_path, rml_folder, file)
             domtree = xml.dom.minidom.parse(label_path)
@@ -209,7 +213,9 @@ class Preprocessor:
             print(f"Found {len(all_events)} events and non-events for {rml_folder}.")
             self.label_dictionary[rml_folder] = all_events
 
-    def _overlaps(self, segment_start, segment_end, start, end):
+    def _overlaps(self, segment_start, segment_end, start, end) -> bool:
+        """This function checks if a segment fully falls between a start and end label in the RML file.
+        :return: True / False"""
         return segment_start < end and segment_end > start
 
     def _read_out_single_edf_file(self, edf_folder: str) -> np.array:
@@ -429,6 +435,10 @@ class Preprocessor:
         shutil.move(os.path.join(self.npz_path, npz_file), os.path.join(self.retired_path, npz_file))
 
     def get_download_folder_contents(self):
+        """
+        This function prints all patient IDs for all EDF and RML files currently present in the download folder.
+        :returns: None
+        """
         edf_folder_contents = os.listdir(self.edf_download_path)
         rml_folder_contents = os.listdir(self.rml_download_path)
 
@@ -477,8 +487,14 @@ class Preprocessor:
             segments: bool = False,
             create_files: bool = False,
             shuffle: bool = False) -> None:
-        """os.makedirs(self.parquet_path, exist_ok=True)
+        """
         Runs the preprocessing pipeline.
+        The following parameters can be chosen:
+        - download: Set to true to download EDF and RML files provided during the initialization.
+        - dictionary: Set to true to create a label dictionary (necessary for following steps).
+        - segments: Set to true to create a segments dictionary containing the actual signal (necessary for following steps).
+        - create_files: Set to true to create npz, wav and png files.
+        - shuffle: Set to true to shuffle files and move into designated train, validation and test folders.
         :return: None
         """
         self._create_directory_structure()

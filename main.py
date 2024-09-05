@@ -17,12 +17,11 @@ pre = Preprocessor(project_dir='data',
                    classes=CLASSES,
                    clip_length=20,
                    clip_step_size=5,
-                   ids_to_process=['00000995'],
+                   ids_to_process=['00000995', '00001006'],
                    sample_rate=48000)
 
 pre.run(download=False,
         dictionary=True,
         segments=True,
-        create_files=True)
-print(pre.label_dictionary)
-print(len(pre.label_dictionary['00000995']))
+        create_files=True,
+        shuffle=True)

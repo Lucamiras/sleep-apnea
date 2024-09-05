@@ -1,13 +1,11 @@
 import os
 import shutil
 import requests
-import mne
 import xml.dom.minidom
 import numpy as np
 from tqdm import tqdm
 import librosa
 import librosa.feature
-import noisereduce as nr
 import matplotlib.pyplot as plt
 from scipy.io.wavfile import write
 import gc
@@ -178,172 +176,38 @@ class Preprocessor:
             dst_path = os.path.join(self.rml_preprocess_path, rml_file.split('-')[0], rml_file)
             shutil.move(src=src_path, dst=dst_path)
 
-    def _create_label_dictionary(self):
-        logging.info('4 --- Creating label dictionaries ---')
-        clip_length = self.clip_length
-
-        for rml_folder in os.listdir(self.rml_preprocess_path):
-            for file in os.listdir(os.path.join(self.rml_preprocess_path, rml_folder)):
-                label_path = os.path.join(self.rml_preprocess_path, rml_folder, file)
-                domtree = xml.dom.minidom.parse(label_path)
-                group = domtree.documentElement
-                events = group.getElementsByTagName("Event")
-                events_classes = [event for event in events if event.getAttribute('Type') in self.classes.keys()]
-                events_apnea = []
-                non_events_apnea = []
-
-                for i, event in tqdm(enumerate(events_classes)):
-                    # set up important variables
-                    event_type = event.getAttribute('Type')
-                    start = float(event.getAttribute('Start'))
-                    duration = float(event.getAttribute('Duration'))
-                    end = start + duration
-                    upper = float(events_classes[i+1].getAttribute('Start')) if i != (len(events_classes) - 1) else np.inf
-                    lower = float(events_classes[i-1].getAttribute('Start')) + float(events_classes[i-1].getAttribute('Duration')) \
-                        if i != 0 else 0
-                    cleared = False
-                    buffer_lower = 0
-                    buffer_upper = 0
-
-                    # skip clips that are too short
-                    if upper - lower < (self.clip_length + 10):
-                        continue
-
-                    if end > upper:
-                        continue
-
-                    if start < lower:
-                        continue
-
-                    # generate buffer around the clip and try until there is no overlap
-                    buffer_length = self.clip_length - duration
-                    while not cleared:
-                        buffer = np.random.uniform(0, buffer_length)
-                        buffer_lower = np.round(buffer, 1)
-                        buffer_upper = np.round(buffer_length - buffer_lower, 1)
-                        if start - buffer_lower > lower and end + buffer_upper < upper:
-                            cleared = True
-
-                    # Create positive clip with buffer
-                    clip_start = start - buffer_lower
-                    new_entry = (str(event_type),
-                                 float(clip_start),
-                                 float(self.clip_length))
-                    events_apnea.append(new_entry)
-
-                # generate negative entries
-                for i in range(len(events) - 1):
-                    current_event = events[i]
-                    next_event = events[i + 1]
-                    lower = float(current_event.getAttribute('Start')) + float(current_event.getAttribute('Duration'))
-                    upper = float(next_event.getAttribute('Start'))
-                    if upper - lower > float(self.clip_length):
-                        middle_value = float(lower + upper) / 2
-                        negative_entry = ('NoApnea',
-                                          float(middle_value - (self.clip_length / 2)),
-                                          float(self.clip_length))
-                        non_events_apnea.append(negative_entry)
-
-                all_events = events_apnea + non_events_apnea
-                all_events = sorted(all_events, key=lambda x: x[1])
-
-                print(f"Found {len(all_events)} events and non-events for {rml_folder}.")
-                self.label_dictionary[rml_folder] = all_events
-
-    def _create_sequential_label_dictionary(self):
-        for rml_folder in os.listdir(self.rml_preprocess_path):
-            for file in os.listdir(os.path.join(self.rml_preprocess_path, rml_folder)):
-                label_path = os.path.join(self.rml_preprocess_path, rml_folder, file)
-                domtree = xml.dom.minidom.parse(label_path)
-                group = domtree.documentElement
-                events = group.getElementsByTagName('Event')
-                last_event_timestamp = int(float(events[-1].getAttribute('Start')))
-                segment_duration = self.clip_length
-                step_size = self.clip_step_size
-                events_timestamps = [
-                    (float(event.getAttribute('Start')),
-                     float(event.getAttribute('Duration')),
-                     event.getAttribute('Type')) for event in events
-                    if event.getAttribute('Type') in self.classes.keys()
-                ]
-                all_events = []
-                for segment_start in range(0, last_event_timestamp, step_size):
-                    segment_end = segment_start + segment_duration
-                    label = 'NoApnea'
-                    for timestamp in events_timestamps:
-                        start = timestamp[0]
-                        end = start + timestamp[1]
-                        event_type = timestamp[2]
-                        if self._overlaps(segment_start, segment_end, start, end):
-                            label = event_type
-                            break
-                    new_entry = (str(label),
-                                 float(segment_start),
-                                 float(segment_duration))
-                    all_events.append(new_entry)
-                print(f"Found {len(all_events)} events and non-events for {rml_folder}.")
-                self.label_dictionary[rml_folder] = all_events
-
-    def _create_sliding_window_label_dictionary(self):
-        for rml_folder in os.listdir(self.rml_preprocess_path):
-            for file in os.listdir(os.path.join(self.rml_preprocess_path, rml_folder)):
-                label_path = os.path.join(self.rml_preprocess_path, rml_folder, file)
-                domtree = xml.dom.minidom.parse(label_path)
-                group = domtree.documentElement
-                events = group.getElementsByTagName("Event")
-                events_classes = [event for event in events if event.getAttribute('Type') in self.classes.keys()]
-                events_apnea = []
-                non_events_apnea = []
-
-                for i, event in tqdm(enumerate(events_classes)):
-                    event_type = event.getAttribute('Type')
-                    start = float(event.getAttribute('Start'))
-                    duration = float(event.getAttribute('Duration'))
-                    end = start + duration
-                    counter = 0
-                    for step in range(0, self.clip_length, self.clip_step_size):
-                        lower_bound = end - self.clip_length + step
-                        upper_bound = end + step
-                        if lower_bound > start:
-                            continue
-                        new_entry = (
-                            str(event_type),
-                            float(lower_bound),
-                            float(self.clip_length)
-                        )
-                        events_apnea.append(new_entry)
-                        counter += 1
-
-                events_found = len(events_apnea)
-                non_events_counter = 0
-
-                for i in range(1, len(events_apnea)):
-                    current_event = events_apnea[i]
-                    previous_event = events_apnea[i - 1]
-                    lower_bound = previous_event[1] + previous_event[2]
-                    upper_bound = current_event[1]
-                    available_time = upper_bound - lower_bound
-                    if available_time <= self.clip_length:
-                        continue
-                    number_of_samples = int(available_time / self.clip_length)
-                    for j in range(number_of_samples):
-                        start = lower_bound
-                        new_entry = (
-                            str("NoApnea"),
-                            float(start),
-                            float(self.clip_length)
-                        )
-                        lower_bound += self.clip_length
-                        non_events_apnea.append(new_entry)
-                        non_events_counter += 1
-                    if non_events_counter >= events_found:
+    def _create_sequential_label_dictionary(self, rml_folder):
+        for file in os.listdir(os.path.join(self.rml_preprocess_path, rml_folder)):
+            label_path = os.path.join(self.rml_preprocess_path, rml_folder, file)
+            domtree = xml.dom.minidom.parse(label_path)
+            group = domtree.documentElement
+            events = group.getElementsByTagName('Event')
+            last_event_timestamp = int(float(events[-1].getAttribute('Start')))
+            segment_duration = self.clip_length
+            step_size = self.clip_step_size
+            events_timestamps = [
+                (float(event.getAttribute('Start')),
+                 float(event.getAttribute('Duration')),
+                 event.getAttribute('Type')) for event in events
+                if event.getAttribute('Type') in self.classes.keys()
+            ]
+            all_events = []
+            for segment_start in range(0, last_event_timestamp, step_size):
+                segment_end = segment_start + segment_duration
+                label = 'NoApnea'
+                for timestamp in events_timestamps:
+                    start = timestamp[0]
+                    end = start + timestamp[1]
+                    event_type = timestamp[2]
+                    if self._overlaps(segment_start, segment_end, start, end):
+                        label = event_type
                         break
-
-                all_events = events_apnea + non_events_apnea
-                all_events = sorted(all_events, key=lambda x: x[1])
-
-                print(f"Found {len(all_events)} events and non-events for {rml_folder}.")
-                self.label_dictionary[rml_folder] = all_events
+                new_entry = (str(label),
+                             float(segment_start),
+                             float(segment_duration))
+                all_events.append(new_entry)
+            print(f"Found {len(all_events)} events and non-events for {rml_folder}.")
+            self.label_dictionary[rml_folder] = all_events
 
     def _overlaps(self, segment_start, segment_end, start, end):
         return segment_start < end and segment_end > start
@@ -378,7 +242,7 @@ class Preprocessor:
 
         return full_readout
 
-    def _get_edf_segments_from_labels(self) -> None:
+    def _get_edf_segments_from_labels(self, edf_folder) -> None:
         """
         Load edf files and create segments by timestamps.
         :return:
@@ -386,39 +250,37 @@ class Preprocessor:
         logging.info('5 --- Create segments ---')
         clip_length_seconds = self.clip_length
 
-        for edf_folder in self.ids_to_process:
-            print(f"Starting to create segments for user {edf_folder}")
-            edf_folder_path = os.path.join(self.edf_preprocess_path, edf_folder)
-            edf_readout = self._read_out_single_edf_file(edf_folder_path)
-            self.segments_dictionary[edf_folder] = []
 
-            for label in self.label_dictionary[edf_folder]:
-                label_desc = label[0]
-                time_stamp = label[1]
-                start_idx = int(time_stamp * self.sample_rate)
-                end_idx = int((time_stamp + clip_length_seconds) * self.sample_rate)
-                segment = edf_readout[start_idx:end_idx]
-                if len(segment) > 0:
-                    self.segments_dictionary[edf_folder].append((label_desc, segment))
+        print(f"Starting to create segments for user {edf_folder}")
+        edf_folder_path = os.path.join(self.edf_preprocess_path, edf_folder)
+        edf_readout = self._read_out_single_edf_file(edf_folder_path)
+        self.segments_dictionary[edf_folder] = []
 
-            del edf_readout, segment
-            gc.collect()
+        for label in self.label_dictionary[edf_folder]:
+            label_desc = label[0]
+            time_stamp = label[1]
+            start_idx = int(time_stamp * self.sample_rate)
+            end_idx = int((time_stamp + clip_length_seconds) * self.sample_rate)
+            segment = edf_readout[start_idx:end_idx]
+            if len(segment) > 0:
+                self.segments_dictionary[edf_folder].append((label_desc, segment))
 
-    def _save_segments_as_npz(self) -> None:
+        del edf_readout, segment
+        gc.collect()
+
+    def _save_segments_as_npz(self, patient_id) -> None:
         """
         Goes through the segments dictionary and creates npz files to save to disk.
         :returns: None
         """
         assert len(self.segments_dictionary) > 0, "No segments available to save."
-        for patient_id in self.segments_dictionary.keys():
-            if f"{patient_id}.npz" in os.listdir(self.npz_path):
-                continue
-            data = self.segments_dictionary[patient_id]
-            npz_file_name = f"{patient_id}.npz"
-            save_path = os.path.join(self.npz_path, npz_file_name)
-            arrays = {f"array_{i}": array for i, (_, array) in enumerate(data)}
-            labels = np.array([label for label, _ in data])
-            np.savez(save_path, labels=labels, **arrays)
+
+        data = self.segments_dictionary[patient_id]
+        npz_file_name = f"{patient_id}.npz"
+        save_path = os.path.join(self.npz_path, npz_file_name)
+        arrays = {f"array_{i}": array for i, (_, array) in enumerate(data)}
+        labels = np.array([label for label, _ in data])
+        np.savez(save_path, labels=labels, **arrays)
 
     def _load_segments_from_npz(self, npz_file) -> list:
         """
@@ -500,7 +362,7 @@ class Preprocessor:
 
     def reshuffle_train_val_test(self) -> None:
         """
-        In case the earth mover diagram shows distribution imbalance, this function re-shuffles the train, test and
+        In case the earthmover diagram shows distribution imbalance, this function re-shuffles the train, test and
         validation files.
         """
         for folder in os.listdir(self.spectrogram_path):
@@ -551,19 +413,20 @@ class Preprocessor:
 
         print(f'Moved {number_of_files} files into /{target_folder}.')
 
-    def _save_to_wav(self) -> None:
+    def _save_to_wav(self, patient_id) -> None:
         """
         This function iterates through the segments list and creates individual wav files.
         :returns: None
         """
         logging.info('6 --- Creating WAV files ---')
         assert len(self.npz_path) > 0, "No npz files to process."
-        for npz_file in os.listdir(self.npz_path):
-            data = self._load_segments_from_npz(npz_file=npz_file)
-            for index, (label, signal) in enumerate(data):
-                file_name = f"{index:05d}_{npz_file.split('.npz')[0]}_{label}.wav"
-                write(os.path.join(self.audio_path, file_name), rate=self.sample_rate, data=signal.astype(np.float32))
-            shutil.move(os.path.join(self.npz_path, npz_file), os.path.join(self.retired_path, npz_file))
+
+        npz_file = f"{patient_id}.npz"
+        data = self._load_segments_from_npz(npz_file=npz_file)
+        for index, (label, signal) in enumerate(data):
+            file_name = f"{index:05d}_{npz_file.split('.npz')[0]}_{label}.wav"
+            write(os.path.join(self.audio_path, file_name), rate=self.sample_rate, data=signal.astype(np.float32))
+        shutil.move(os.path.join(self.npz_path, npz_file), os.path.join(self.retired_path, npz_file))
 
     def get_download_folder_contents(self):
         edf_folder_contents = os.listdir(self.edf_download_path)
@@ -625,19 +488,18 @@ class Preprocessor:
 
         self._move_selected_downloads_to_preprocessing()
 
-        if dictionary:
-            # self._create_sequential_label_dictionary()
-            # self._create_label_dictionary()
-            self._create_sliding_window_label_dictionary()
+        for patient_id in os.listdir(self.rml_preprocess_path):
+            if dictionary:
+                self._create_sequential_label_dictionary(patient_id)
 
-        if segments:
-            self._get_edf_segments_from_labels()
+            if segments:
+                self._get_edf_segments_from_labels(patient_id)
 
-        if create_files:
-            self._save_segments_as_npz()
-            self._save_to_wav()
-            self._collect_processed_raw_files()
-            self._create_all_spectrogram_files()
+            if create_files:
+                self._save_segments_as_npz(patient_id)
+                self._save_to_wav(patient_id)
+                self._collect_processed_raw_files()
+                self._create_all_spectrogram_files()
 
         if shuffle:
             self._train_val_test_split_spectrogram_files()

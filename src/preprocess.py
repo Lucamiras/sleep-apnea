@@ -213,10 +213,11 @@ class Preprocessor:
             print(f"Found {len(all_events)} events and non-events for {rml_folder}.")
             self.label_dictionary[rml_folder] = all_events
 
-    def _overlaps(self, segment_start, segment_end, start, end) -> bool:
-        """This function checks if a segment fully falls between a start and end label in the RML file.
+    def _overlaps(self, segment_start, segment_end, label_start, label_end) -> bool:
+        """This function checks if at last 50% of a labelled event is covered by
         :return: True / False"""
-        return segment_start < end and segment_end > start
+        mid = (label_start + label_end) // 2
+        return (mid < segment_end < label_end) or (mid > segment_start > label_start)
 
     def _read_out_single_edf_file(self, edf_folder: str) -> np.array:
         """

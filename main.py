@@ -1,12 +1,10 @@
 from src.preprocess import Preprocessor
+from src.preprocess import get_download_urls
 from src.utils.globals import (
     EDF_URLS, RML_URLS, DATA_CHANNELS, CLASSES
 )
-from src.augment import SpecAugmentation
-from src.dataset import SpectrogramDataset
 import warnings
 import os
-import xml.dom.minidom
 
 warnings.filterwarnings('ignore')
 
@@ -20,8 +18,6 @@ pre = Preprocessor(project_dir='data',
                    ids_to_process=['00000995', '00001006'],
                    sample_rate=48000)
 
-pre.run(download=False,
-        dictionary=True,
-        segments=True,
-        create_files=True,
-        shuffle=True)
+rml, edf = get_download_urls(file_path=os.path.join('data', 'file_catalog.txt'), n_ids=2, seed=42)
+print(rml)
+print(edf)

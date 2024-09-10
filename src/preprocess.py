@@ -12,6 +12,7 @@ import gc
 import random
 import logging
 import pyedflib
+import re
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -520,3 +521,20 @@ class Preprocessor:
 
         if shuffle:
             self._train_val_test_split_spectrogram_files()
+
+def get_download_urls(file_path, n_ids:int=5, seed=42) -> tuple:
+    np.random.seed(seed)
+    with open(file_path, 'r') as f:
+        content = f.read()
+    urls = content.split('\n')
+    ids = list(set(re.findall(pattern=r'0000[0-9]{4}', string=content)))
+    selected_ids = np.random.choice(a=ids, size=n_ids).tolist()
+    selected_rml_urls = []
+    selected_edf_urls = []
+    for s_id in selected_ids:
+        for url in urls:
+            if '/V3/APNEA_RML_clean/' + s_id in url:
+                selected_rml_urls.append(url)
+            if '/V3/APNEA_EDF/' + s_id in url:
+                selected_edf_urls.append(url)
+    return selected_rml_urls, selected_edf_urls

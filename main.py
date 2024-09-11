@@ -15,9 +15,11 @@ pre = Preprocessor(project_dir='data',
                    classes=CLASSES,
                    clip_length=20,
                    clip_step_size=5,
-                   ids_to_process=['00000995', '00001006'],
+                   ids_to_process=['00000995'],
                    sample_rate=48000)
 
-rml, edf = get_download_urls(file_path=os.path.join('data', 'file_catalog.txt'), n_ids=2, seed=42)
-print(rml)
-print(edf)
+pre.run(
+    download=False,
+    dictionary=True
+)
+

@@ -189,7 +189,6 @@ class Preprocessor:
             events = group.getElementsByTagName('Event')
             last_event_timestamp = int(float(events[-1].getAttribute('Start')))
             segment_duration = self.clip_length
-            step_size = self.clip_step_size
             events_timestamps = [
                 (float(event.getAttribute('Start')),
                  float(event.getAttribute('Duration')),
@@ -197,7 +196,7 @@ class Preprocessor:
                 if event.getAttribute('Type') in self.classes.keys()
             ]
             all_events = []
-            for segment_start in range(0, last_event_timestamp, step_size):
+            for segment_start in range(0, last_event_timestamp, segment_duration):
                 segment_end = segment_start + segment_duration
                 label = 'NoApnea'
                 for timestamp in events_timestamps:

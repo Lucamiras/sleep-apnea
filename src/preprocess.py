@@ -523,6 +523,12 @@ class Preprocessor:
             self._train_val_test_split_spectrogram_files()
 
 def get_download_urls(file_path, n_ids:int=5, seed=42) -> tuple:
+    """
+        This function generated the EDF and matching RML URLs needed for the preprocessor.
+        How to use: Download the data catalog file for the PSG Audio dataset and put it somewhere in your file
+        directory. Specify the catalog file path when calling the function.
+        :returns: A tuple with two lists (RML and EDF URLs) as well as a list of unique IDs.
+    """
     np.random.seed(seed)
     with open(file_path, 'r') as f:
         content = f.read()
@@ -537,4 +543,4 @@ def get_download_urls(file_path, n_ids:int=5, seed=42) -> tuple:
                 selected_rml_urls.append(url)
             if '/V3/APNEA_EDF/' + s_id in url:
                 selected_edf_urls.append(url)
-    return selected_rml_urls, selected_edf_urls
+    return selected_rml_urls, selected_edf_urls, ids

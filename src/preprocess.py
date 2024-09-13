@@ -543,7 +543,7 @@ def get_download_urls(file_path, n_ids:int=5, seed=42) -> tuple:
                 selected_rml_urls.append(url)
             if '/V3/APNEA_EDF/' + s_id in url:
                 selected_edf_urls.append(url)
-    return selected_rml_urls, selected_edf_urls, ids
+    return selected_rml_urls, selected_edf_urls, selected_ids
 
 def helper_reset_files(move_from: str = 'retired', move_to: str = 'downloads'):
     for folder_type in ['edf', 'rml']:

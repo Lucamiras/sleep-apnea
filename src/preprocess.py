@@ -51,8 +51,7 @@ class Preprocessor:
                  classes: dict,
                  edf_step_size: int = 10_000_000,
                  sample_rate: int = 48_000,
-                 clip_length: int = 20,
-                 clip_step_size: int = 5,
+                 clip_length: int = 30,
                  train_size: float = .8,
                  ids_to_process: list = None):
 
@@ -64,7 +63,6 @@ class Preprocessor:
         self.edf_step_size = edf_step_size
         self.sample_rate = sample_rate
         self.clip_length = clip_length
-        self.clip_step_size = clip_step_size
         self.train_size = train_size
         self.ids_to_process = ids_to_process
         self.patient_ids = []
@@ -546,3 +544,19 @@ def get_download_urls(file_path, n_ids:int=5, seed=42) -> tuple:
             if '/V3/APNEA_EDF/' + s_id in url:
                 selected_edf_urls.append(url)
     return selected_rml_urls, selected_edf_urls, ids
+
+def helper_reset_files(move_from: str = 'retired', move_to: str = 'downloads'):
+    for folder_type in ['edf', 'rml']:
+        root = os.path.join('data', move_from, folder_type)
+        for folder in os.listdir(root):
+            for file in os.listdir(os.path.join(root, folder)):
+                shutil.move(
+                    os.path.join(root, folder, file),
+                    os.path.join('data', move_to, folder_type))
+
+    edf_patient_ids = [str(filename.split('-')[0]) for filename in os.listdir(os.path.join('data', 'downloads', 'edf'))]
+    rml_patient_ids = [str(filename.split('-')[0]) for filename in os.listdir(os.path.join('data', 'downloads', 'rml'))]
+    if set(edf_patient_ids) != set(rml_patient_ids):
+        print('Patient IDs do not match')
+    print("EDF patient IDs:", set(edf_patient_ids))
+    print("RML patient IDs:", set(rml_patient_ids))

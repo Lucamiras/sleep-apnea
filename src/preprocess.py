@@ -534,14 +534,14 @@ def get_download_urls(file_path, n_ids:int=5, seed=42) -> tuple:
         content = f.read()
     urls = content.split('\n')
     ids = list(set(re.findall(pattern=r'0000[0-9]{4}', string=content)))
-    selected_ids = np.random.choice(a=ids, size=n_ids).tolist()
+    selected_ids = np.random.choice(a=ids, size=n_ids, replace=True).tolist()
     selected_rml_urls = []
     selected_edf_urls = []
     for s_id in selected_ids:
         for url in urls:
-            if '/V3/APNEA_RML_clean/' + s_id in url:
+            if ('/V3/APNEA_RML_clean/' + s_id in url) and (url.endswith('.rml')):
                 selected_rml_urls.append(url)
-            if '/V3/APNEA_EDF/' + s_id in url:
+            if ('/V3/APNEA_EDF/' + s_id in url) and (url.endswith('.edf')):
                 selected_edf_urls.append(url)
     return selected_rml_urls, selected_edf_urls, selected_ids
 

@@ -533,7 +533,7 @@ def get_download_urls(file_path, n_ids:int=5, seed=42) -> tuple:
     with open(file_path, 'r') as f:
         content = f.read()
     urls = content.split('\n')
-    ids = list(set(re.findall(pattern=r'0000[0-9]{4}', string=content)))
+    ids = list(x.split('/')[1] for x in set(re.findall(pattern=r'clean/0000[0-9]{4}', string=content)))
     selected_ids = np.random.choice(a=ids, size=n_ids, replace=True).tolist()
     selected_rml_urls = []
     selected_edf_urls = []

@@ -461,7 +461,7 @@ class Preprocessor:
         else:
             print("No RML files found.")
 
-    def _collect_processed_raw_files(self) -> None:
+    def _collect_processed_raw_files(self, patient_id) -> None:
         """
         This function moves the processed edf and rml files.
         :returns: None
@@ -472,15 +472,14 @@ class Preprocessor:
         for folder in ['edf', 'rml']:
             os.makedirs(os.path.join(self.retired_path, folder), exist_ok=True)
 
-        for edf_folder in processed_edf_folders:
-            src_path = os.path.join(self.edf_preprocess_path, edf_folder)
-            dst_path = os.path.join(self.retired_path, 'edf')
-            shutil.move(src=src_path, dst=dst_path)
 
-        for rml_folder in processed_rml_folders:
-            src_path = os.path.join(self.rml_preprocess_path, rml_folder)
-            dst_path = os.path.join(self.retired_path, 'rml')
-            shutil.move(src=src_path, dst=dst_path)
+        src_path = os.path.join(self.edf_preprocess_path, patient_id)
+        dst_path = os.path.join(self.retired_path, 'edf')
+        shutil.move(src=src_path, dst=dst_path)
+
+        src_path = os.path.join(self.rml_preprocess_path, patient_id)
+        dst_path = os.path.join(self.retired_path, 'rml')
+        shutil.move(src=src_path, dst=dst_path)
 
     def run(self,
             download: bool = False,
@@ -505,7 +504,11 @@ class Preprocessor:
 
         self._move_selected_downloads_to_preprocessing()
 
-        for patient_id in os.listdir(self.rml_preprocess_path):
+        patient_ids_to_process = self.ids_to_process if self.ids_to_process is not None \
+            else os.listdir(self.rml_preprocess_path)
+
+        for patient_id in patient_ids_to_process:
+
             if dictionary:
                 self._create_sequential_label_dictionary(patient_id)
 
@@ -515,7 +518,7 @@ class Preprocessor:
             if create_files:
                 self._save_segments_as_npz(patient_id)
                 self._save_to_wav(patient_id)
-                self._collect_processed_raw_files()
+                self._collect_processed_raw_files(patient_id)
                 self._create_all_spectrogram_files()
 
         if shuffle:

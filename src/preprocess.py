@@ -180,42 +180,47 @@ class Preprocessor:
         This function goes through the EDF file in chunks of a determined size, i.e. 30 seconds,
         and labels each chunk according to the provided RML file.
         """
-        for file in os.listdir(os.path.join(self.rml_preprocess_path, rml_folder)):
-            label_path = os.path.join(self.rml_preprocess_path, rml_folder, file)
-            domtree = xml.dom.minidom.parse(label_path)
-            group = domtree.documentElement
-            events = group.getElementsByTagName('Event')
-            last_event_timestamp = int(float(events[-1].getAttribute('Start')))
-            segment_duration = self.clip_length
-            events_timestamps = [
-                (float(event.getAttribute('Start')),
-                 float(event.getAttribute('Duration')),
-                 event.getAttribute('Type')) for event in events
-                if event.getAttribute('Type') in self.classes.keys()
-            ]
-            all_events = []
-            for segment_start in range(0, last_event_timestamp, segment_duration):
-                segment_end = segment_start + segment_duration
-                label = 'NoApnea'
-                for timestamp in events_timestamps:
-                    start = timestamp[0]
-                    end = start + timestamp[1]
-                    event_type = timestamp[2]
-                    if self._overlaps(segment_start, segment_end, start, end):
-                        label = event_type
-                        break
-                new_entry = (str(label),
-                             float(segment_start),
-                             float(segment_duration))
-                all_events.append(new_entry)
-            print(f"Found {len(all_events)} events and non-events for {rml_folder}.")
-            self.label_dictionary[rml_folder] = all_events
+        file = os.listdir(os.path.join(self.rml_preprocess_path, rml_folder))[0]
+        label_path = os.path.join(self.rml_preprocess_path, rml_folder, file)
+        domtree = xml.dom.minidom.parse(label_path)
+        group = domtree.documentElement
+        events = group.getElementsByTagName('Event')
+        last_event_timestamp = int(float(events[-1].getAttribute('Start')))
+        segment_duration = self.clip_length
+        events_timestamps = [
+            (float(event.getAttribute('Start')),
+             float(event.getAttribute('Duration')),
+             event.getAttribute('Type')) for event in events
+            if event.getAttribute('Type') in self.classes.keys()
+        ]
+        all_events = []
+        for segment_start in range(0, last_event_timestamp, segment_duration):
+            segment_end = segment_start + segment_duration
+            label = 'NoApnea'
+            for timestamp in events_timestamps:
+                start = timestamp[0]
+                end = start + timestamp[1]
+                event_type = timestamp[2]
+                if start > segment_end:
+                    break
+                if self._overlaps(segment_start, segment_end, start, end):
+                    label = event_type
+                    break
+            new_entry = (str(label),
+                         float(segment_start),
+                         float(segment_duration))
+            all_events.append(new_entry)
+        print(f"Found {len(all_events)} events and non-events for {rml_folder}.")
+        self.label_dictionary[rml_folder] = all_events
 
     def _overlaps(self, segment_start, segment_end, label_start, label_end) -> bool:
         """This function checks if at last 50% of a labelled event is covered by
         :return: True / False"""
-        mid = (label_start + label_end) // 2
-        return (mid < segment_end < label_end) or (mid > segment_start > label_start)
+        mid = (label_start + label_end) / 2
+        return segment_start < mid < segment_end
+
+    def _no_change(self, array):
+        return (array.sum() / len(array)) == array[0]
 
     def _read_out_single_edf_file(self, edf_folder: str) -> np.array:
         """
@@ -255,7 +260,6 @@ class Preprocessor:
         logging.info('5 --- Create segments ---')
         clip_length_seconds = self.clip_length
 
-
         print(f"Starting to create segments for user {edf_folder}")
         edf_folder_path = os.path.join(self.edf_preprocess_path, edf_folder)
         edf_readout = self._read_out_single_edf_file(edf_folder_path)
@@ -267,6 +271,8 @@ class Preprocessor:
             start_idx = int(time_stamp * self.sample_rate)
             end_idx = int((time_stamp + clip_length_seconds) * self.sample_rate)
             segment = edf_readout[start_idx:end_idx]
+            if self._no_change(segment):
+                break
             if len(segment) > 0:
                 self.segments_dictionary[edf_folder].append((label_desc, segment))
 

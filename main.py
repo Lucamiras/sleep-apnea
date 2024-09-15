@@ -13,15 +13,15 @@ pre = Preprocessor(project_dir='data',
                    rml_urls=RML_URLS,
                    data_channels=DATA_CHANNELS,
                    classes=CLASSES,
-                   clip_length=20,
-                   ids_to_process=['00000995'],
-                   sample_rate=48000)
+                   clip_length=30,
+                   sample_rate=48000,
+                   ids_to_process=['00000995'])
 
 pre.run(
     download=False,
     dictionary=True,
     segments=True,
     create_files=True,
-    shuffle=True
+    shuffle=False
 )
-
+print(pre.label_dictionary)

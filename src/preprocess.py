@@ -3,6 +3,7 @@ import shutil
 import requests
 import xml.dom.minidom
 import numpy as np
+from librosa import hz_to_mel, mel_frequencies, mel_to_hz
 from tqdm import tqdm
 import librosa
 import librosa.feature
@@ -271,10 +272,11 @@ class Preprocessor:
             start_idx = int(time_stamp * self.sample_rate)
             end_idx = int((time_stamp + clip_length_seconds) * self.sample_rate)
             segment = edf_readout[start_idx:end_idx]
-            if self._no_change(segment):
-                break
             if len(segment) > 0:
-                self.segments_dictionary[edf_folder].append((label_desc, segment))
+                if self._no_change(segment):
+                    break
+                else:
+                    self.segments_dictionary[edf_folder].append((label_desc, segment))
 
         del edf_readout, segment
         gc.collect()
@@ -319,6 +321,66 @@ class Preprocessor:
         plt.savefig(output_dir, bbox_inches='tight', pad_inches=0)
         plt.close()
 
+    def hz_to_mel(self, hz):
+        return 2595 * np.log10(1 + hz / 700.)
+
+    def mel_to_hz(self, mel):
+        return 700 * (10**(mel / 2595.) -1)
+
+    def _generate_spectrogram_manually(self, array, output_dir):
+        signal = array
+        n_fft = 2084 #n_fft
+        hop_length = 512
+        n_mels = 128
+        num_frames = int(np.ceil(float(len(signal) - n_fft) / hop_length)) + 1
+        pad_amount = int((num_frames - 1) * hop_length + n_fft - len(signal))
+        padded_signal = np.pad(signal, (0, pad_amount), mode='constant')
+        frames = np.stack([
+            padded_signal[i * hop_length : i * hop_length + n_fft]
+            for i in range(num_frames)
+        ])
+        window = np.hamming(n_fft)
+        windowed_frames = frames * window
+        fft_frames = np.fft.rfft(windowed_frames, n=n_fft, axis=1)
+        power_spectrogram = np.abs(fft_frames) ** 2
+
+        f_min = 0
+        f_max = self.sample_rate / 2
+        mel_min = self.hz_to_mel(f_min)
+        mel_max = self.hz_to_mel(f_max)
+        mel_points = np.linspace(mel_min, mel_max, n_mels + 2)
+        hz_points = self.mel_to_hz(mel_points)
+        bin_numbers = np.floor((n_fft + 1) * hz_points / self.sample_rate).astype(int)
+        filterbank = np.zeros((n_mels, int(n_fft / 2 + 1)))
+        for m in range(1, n_mels + 1):
+            f_m_minus = bin_numbers[m - 1]
+            f_m = bin_numbers[m]
+            f_m_plus = bin_numbers[m + 1]
+            for k in range(f_m, f_m_plus):
+                filterbank[m - 1, k] = (k - bin_numbers[m - 1]) / (bin_numbers[m] - bin_numbers[m - 1])
+            for k in range(f_m, f_m_plus):
+                filterbank[m - 1, k] = (bin_numbers[m + 1] - k) / (bin_numbers[m + 1] - bin_numbers[m])
+
+        mel_spectrogram = np.dot(power_spectrogram, filterbank.T)
+        mel_spectrogram = np.where(mel_spectrogram == 0, np.finfo(float).eps, mel_spectrogram)
+        log_mel_spectrogram = 10 * np.log10(mel_spectrogram)
+        times = np.arange(num_frames) * hop_length / self.sample_rate
+        mel_frequencies = mel_to_hz(mel_points[1:-1])
+
+        plt.figure(figsize=(10,5))
+        extent = [times[0], times[-1], mel_frequencies[0], mel_frequencies[-1]]
+        plt.imshow(
+            log_mel_spectrogram.T,
+            aspect='auto',
+            origin='lower',
+            extent=extent,
+            cmap='inferno'
+        )
+        plt.axis('off')
+        plt.tight_layout()
+        plt.savefig(output_dir, bbox_inches='tight', pad_inches=0)
+        plt.close()
+
     def _create_all_spectrogram_files(self) -> None:
         """
         Goes through all wav files in the data/processed/audio subfolder and calls the save_spectrogram
@@ -334,6 +396,14 @@ class Preprocessor:
             dest_path = os.path.join(self.spectrogram_path, spec_file_name)
             self._generate_spectrogram(wav_path, output_dir=dest_path)
             shutil.move(wav_path, os.path.join(retired_audio, wav_file))
+
+    def _create_all_spectrogram_files_manually(self, patient_id):
+        npz_file = f"{patient_id}.npz"
+        data = self._load_segments_from_npz(npz_file=npz_file)
+        for index, arr in tqdm(enumerate(data)):
+            spec_file_name = f"{index:05d}_{patient_id}_{arr[0]}"
+            dest_path = os.path.join(self.spectrogram_path, spec_file_name)
+            self._generate_spectrogram_manually(array=arr[1], output_dir=dest_path)
 
     def _train_val_test_split_spectrogram_files(self) -> None:
         """
@@ -521,9 +591,7 @@ class Preprocessor:
 
             if create_files:
                 self._save_segments_as_npz(patient_id)
-                self._save_to_wav(patient_id)
-                self._collect_processed_raw_files(patient_id)
-                self._create_all_spectrogram_files()
+                self._create_all_spectrogram_files_manually(patient_id)
 
         if shuffle:
             self._train_val_test_split_spectrogram_files()

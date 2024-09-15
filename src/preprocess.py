@@ -3,7 +3,7 @@ import shutil
 import requests
 import xml.dom.minidom
 import numpy as np
-from librosa import hz_to_mel, mel_frequencies, mel_to_hz
+from librosa import mel_to_hz
 from tqdm import tqdm
 import librosa
 import librosa.feature

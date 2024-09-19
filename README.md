@@ -24,29 +24,30 @@ Using various techniques such as data augmentation with ambient background noise
 | ConvNext | 3 (No apnea, Hypopnea, Obstructive Apnea) | 0.65 |
 
 ## Background
-The sleep apnea syndrome is a chronic condition that affects quality of life and increases the risk 
+The **sleep apnea syndrome** is a chronic condition that affects quality of life and increases the risk 
 of severe health conditions such as cardiovascular diseases. However, the prevalence of the syndrome 
-in the general population is considered to be heavily underestimated due to the restricted number of 
-people seeking diagnosis, with the leading cause for this being the inconvenience of the current reference 
+in the general population is considered to be **heavily underestimated** due to the restricted number of 
+people seeking diagnosis, with the leading cause for this being the **inconvenience** of the current reference 
 standard for apnea diagnosis: Polysomnography. Various home-based apnea detection systems are being 
 developed, profiting from information in a restricted set of polysomnography signals. Better results are
 achieved by incorporating various signals, including EEG, ECG and EKGs, blood oxygen saturation as well as
 heart rate.
 
-However, in this project, I limited myself to using breathing sounds exclusively. I did this to set myself
+However, in this project, I purposefully limited myself to using **breathing sounds exclusively**. I did this to set myself
 an interesting challenge, to limit the scope of the problem to be achievable in the limited timeframe of
-the project (two-and-a-half weeks), but also because the ambition of the project is to develop an 
-at-home solution that can be used without the need for additional equipment or expensive wearables.
+the project (two-and-a-half weeks), but also because the ambition of the project is to develop an **easy-to-use
+at-home solution** that can be used without the need for additional equipment or expensive wearables, enabling more people to use the solution.
 
 ## Dataset
-The PSG-Audio dataset is a freely available open-source dataset comprising 212 polysomnograms 
+The **PSG-Audio dataset** is a freely available open-source dataset comprising 212 polysomnograms 
 along with synchronized high-quality tracheal and ambient microphone recordings. This dataset is 
-crucial for developing and testing my model.
+crucial for developing and testing my model. I would like to extend a special THANK YOU to the team who spent time and resources to create
+this dataset and make it available for free.
 
 ![PSG-Audio dataset](images/dataset.jpg)
 
 ## Solution Approach
-A convolutional neural network architecture will be used to classify the spectrogram files of different apnea types and non-apnea events based on ambient recordings alone. The process involves several key steps:
+A **convolutional neural network architecture** was used to classify the spectrogram files of different apnea types and non-apnea events based on ambient recordings alone. The process involves several key steps:
 
 ### Data preprocessing:
 1. **Data Preprocessing**: Key challenges of this project were handling large volumes of data. The PSG-Audio data is stored in the EDF file format (European File Format), while the labels are stored in RML files. Data preprocessing included the following steps:
@@ -55,7 +56,7 @@ A convolutional neural network architecture will be used to classify the spectro
    2. **Label dictionary**: Extracting labels with timestamps and labels into a label dictionary.
    3. **Extract sound signal**: Extracting the sound signals based on the timestamps.
    4. **Convert to WAV**: Converting the signals into WAV files.
-   5. **Convert to mel**: Converting the WAV files into mel spectrograms.
+   5. **Convert to mel spectrograms**: Converting the WAV files into mel spectrograms.
    6. **Train val test split**: Splitting mel spectrograms randomly into train, validation and test.
    7. **Data augmentation**: Augmenting training data with ambient background sounds.
 

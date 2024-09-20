@@ -23,6 +23,8 @@ Using various techniques such as data augmentation with ambient background noise
 | Baseline CNN | 3 (No apnea, Hypopnea, Obstructive Apnea) | 0.57 |
 | ConvNext | 3 (No apnea, Hypopnea, Obstructive Apnea) | 0.65 |
 
+![Confusion Matrix 0.799 F1 Test](images/pretrained_cm.png)
+
 ## Background
 The **sleep apnea syndrome** is a chronic condition that affects quality of life and increases the risk 
 of severe health conditions such as cardiovascular diseases. However, the prevalence of the syndrome 

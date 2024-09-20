@@ -24,6 +24,7 @@ Using various techniques such as data augmentation with ambient background noise
 | ConvNext | 3 (No apnea, Hypopnea, Obstructive Apnea) | 0.65 |
 
 ![Confusion Matrix 0.799 F1 Test](images/pretrained_cm.png)
+*This confusion matrix shows that with the holdout set, 84% of samples were correctly classified, whereas 16% were incorrectly classified.*
 
 ## Background
 The **sleep apnea syndrome** is a chronic condition that affects quality of life and increases the risk 

@@ -3,7 +3,7 @@ import shutil
 import requests
 import xml.dom.minidom
 import numpy as np
-from librosa import mel_to_hz
+from librosa import mel_to_hz, mel_frequencies
 from tqdm import tqdm
 import librosa
 import librosa.feature
@@ -69,6 +69,7 @@ class Preprocessor:
         self.patient_ids = []
         self.label_dictionary = {}
         self.segments_dictionary = {}
+        self.mel_frequency_dictionary = {}
 
         self._create_directory_structure()
 
@@ -327,7 +328,7 @@ class Preprocessor:
     def mel_to_hz(self, mel):
         return 700 * (10**(mel / 2595.) -1)
 
-    def _generate_spectrogram_manually(self, array, output_dir):
+    def _generate_spectrogram_manually(self, array:list, output_dir:str, output_images:bool):
         signal = array
         n_fft = 2084 #n_fft
         hop_length = 512
@@ -367,19 +368,22 @@ class Preprocessor:
         times = np.arange(num_frames) * hop_length / self.sample_rate
         mel_frequencies = mel_to_hz(mel_points[1:-1])
 
-        plt.figure(figsize=(10,5))
-        extent = [times[0], times[-1], mel_frequencies[0], mel_frequencies[-1]]
-        plt.imshow(
-            log_mel_spectrogram.T,
-            aspect='auto',
-            origin='lower',
-            extent=extent,
-            cmap='inferno'
-        )
-        plt.axis('off')
-        plt.tight_layout()
-        plt.savefig(output_dir, bbox_inches='tight', pad_inches=0)
-        plt.close()
+        if output_images:
+            plt.figure(figsize=(10,5))
+            extent = [times[0], times[-1], mel_frequencies[0], mel_frequencies[-1]]
+            plt.imshow(
+                log_mel_spectrogram.T,
+                aspect='auto',
+                origin='lower',
+                extent=extent,
+                cmap='inferno'
+            )
+            plt.axis('off')
+            plt.tight_layout()
+            plt.savefig(output_dir, bbox_inches='tight', pad_inches=0)
+            plt.close()
+        else:
+            return log_mel_spectrogram.T
 
     def _create_all_spectrogram_files(self) -> None:
         """
@@ -397,13 +401,16 @@ class Preprocessor:
             self._generate_spectrogram(wav_path, output_dir=dest_path)
             shutil.move(wav_path, os.path.join(retired_audio, wav_file))
 
-    def _create_all_spectrogram_files_manually(self, patient_id):
+    def _create_all_spectrogram_files_manually(self, patient_id:str, output_images:bool):
         npz_file = f"{patient_id}.npz"
         data = self._load_segments_from_npz(npz_file=npz_file)
         for index, arr in tqdm(enumerate(data)):
             spec_file_name = f"{index:05d}_{patient_id}_{arr[0]}"
             dest_path = os.path.join(self.spectrogram_path, spec_file_name)
-            self._generate_spectrogram_manually(array=arr[1], output_dir=dest_path)
+            if output_images:
+                self._generate_spectrogram_manually(array=arr[1], output_dir=dest_path, output_images=True)
+            else:
+                self.mel_frequency_dictionary[spec_file_name] = self._generate_spectrogram_manually(array=arr[1], output_dir='', output_images=False)
 
     def _train_val_test_split_spectrogram_files(self) -> None:
         """
@@ -560,6 +567,7 @@ class Preprocessor:
             dictionary: bool = False,
             segments: bool = False,
             create_files: bool = False,
+            mel_frequencies_dict: bool = False,
             shuffle: bool = False) -> None:
         """
         Runs the preprocessing pipeline.
@@ -591,7 +599,11 @@ class Preprocessor:
 
             if create_files:
                 self._save_segments_as_npz(patient_id)
-                self._create_all_spectrogram_files_manually(patient_id)
+                self._create_all_spectrogram_files_manually(patient_id, output_images=True)
+
+            if mel_frequencies_dict:
+                self._save_segments_as_npz(patient_id)
+                self._create_all_spectrogram_files_manually(patient_id, output_images=False)
 
         if shuffle:
             self._train_val_test_split_spectrogram_files()

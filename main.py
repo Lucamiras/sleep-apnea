@@ -5,6 +5,8 @@ from src.utils.globals import (
 )
 import warnings
 import os
+import matplotlib.pyplot as plt
+
 
 warnings.filterwarnings('ignore')
 
@@ -21,7 +23,8 @@ pre.run(
     download=False,
     dictionary=True,
     segments=True,
-    create_files=True,
+    create_files=False,
+    mel_frequencies_dict=True,
     shuffle=False
 )
-print(pre.label_dictionary)
+print(pre.mel_frequency_dictionary)

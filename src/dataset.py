@@ -1,8 +1,7 @@
 import torch
-from torch.utils.data import Dataset, DataLoader, random_split
+from torch.utils.data import Dataset
 import torch.nn.functional as f
 from PIL import Image
-from tqdm import tqdm
 import os
 
 

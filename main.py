@@ -4,20 +4,20 @@ from src.utils.globals import (
     EDF_URLS, RML_URLS, DATA_CHANNELS, CLASSES
 )
 import warnings
-import os
-import matplotlib.pyplot as plt
 
 
 warnings.filterwarnings('ignore')
 
-pre = Preprocessor(project_dir='data',
-                   edf_urls=EDF_URLS,
-                   rml_urls=RML_URLS,
-                   data_channels=DATA_CHANNELS,
-                   classes=CLASSES,
-                   clip_length=30,
-                   sample_rate=48000,
-                   ids_to_process=['00000995'])
+pre = Preprocessor(
+    project_dir='data',
+    edf_urls=EDF_URLS,
+    rml_urls=RML_URLS,
+    data_channels=DATA_CHANNELS,
+    classes=CLASSES,
+    clip_length=30,
+    sample_rate=48000,
+    ids_to_process=['00000995']
+)
 
 pre.run(
     download=False,
@@ -27,4 +27,5 @@ pre.run(
     mel_frequencies_dict=True,
     shuffle=False
 )
+
 print(pre.mel_frequency_dictionary)

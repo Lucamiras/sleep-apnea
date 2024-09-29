@@ -14,6 +14,7 @@ import random
 import logging
 import pyedflib
 import re
+import pickle
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -88,6 +89,7 @@ class Preprocessor:
         self.npz_path: str = os.path.join(self.project_dir, 'preprocess', 'npz')
         self.audio_path: str = os.path.join(self.project_dir, 'processed', 'audio')
         self.spectrogram_path: str = os.path.join(self.project_dir, 'processed', 'spectrogram')
+        self.signals_path: str = os.path.join(self.project_dir, 'processed', 'signals')
         self.retired_path: str = os.path.join(self.project_dir, 'retired')
 
         os.makedirs(self.edf_download_path, exist_ok=True)
@@ -97,6 +99,7 @@ class Preprocessor:
         os.makedirs(self.npz_path, exist_ok=True)
         os.makedirs(self.audio_path, exist_ok=True)
         os.makedirs(self.spectrogram_path, exist_ok=True)
+        os.makedirs(self.signals_path, exist_ok=True)
         os.makedirs(self.retired_path, exist_ok=True)
 
     def _download_data(self) -> None:
@@ -553,7 +556,6 @@ class Preprocessor:
         for folder in ['edf', 'rml']:
             os.makedirs(os.path.join(self.retired_path, folder), exist_ok=True)
 
-
         src_path = os.path.join(self.edf_preprocess_path, patient_id)
         dst_path = os.path.join(self.retired_path, 'edf')
         shutil.move(src=src_path, dst=dst_path)
@@ -604,6 +606,9 @@ class Preprocessor:
             if mel_frequencies_dict:
                 self._save_segments_as_npz(patient_id)
                 self._create_all_spectrogram_files_manually(patient_id, output_images=False)
+
+                with open(os.path.join(self.signals_path, 'signals.pickle'), 'wb') as signals_file:
+                    pickle.dump(self.mel_frequency_dictionary, signals_file, protocol=pickle.HIGHEST_PROTOCOL)
 
         if shuffle:
             self._train_val_test_split_spectrogram_files()

@@ -3,6 +3,9 @@ from torch.utils.data import Dataset
 import torch.nn.functional as f
 from PIL import Image
 import os
+import pickle
+import random
+import numpy as np
 
 
 class SpectrogramDataset(Dataset):
@@ -42,3 +45,46 @@ class SpectrogramDataset(Dataset):
                 list: The label corresponding to the file name.
             """
             return self.classes[file_name.split('.png')[0].split('_')[2]]
+
+class MelSpectrogramDataset(Dataset):
+    def __init__(self, signal_dir, transform=None, classes:dict = None):
+        assert classes is not None, "No classes were selected. Not data will be loaded."
+        self.signal_dir = signal_dir
+        self.signals = self._load_data_from_pickle_and_transform()
+        self.transform = transform
+        self.classes = classes
+        self.num_classes = (len(set(classes.values())))
+        self.patient_ids = set([patient_id.split('_')[2] for patient_id in self.signals.keys()])
+
+    def __len__(self):
+        return len(self.signals)
+
+    def __getitem__(self, idx):
+        signal_filename, signal_data = list(self.signals.items())[idx]
+        signal_label = self._get_label_from_filename(signal_filename)
+        image = Image.fromarray(signal_data)
+        one_hot_label = f.one_hot(torch.tensor(signal_label), num_classes=self.num_classes)
+        if self.transform:
+            signal_data = self.transform(image)
+        return signal_data, one_hot_label
+
+    def _get_label_from_filename(self, file_name):
+        return self.classes[file_name.split('_')[2]]
+
+
+    def _load_data_from_pickle_and_transform(self):
+        # load from pickle
+        pickle_files = os.listdir(self.signal_dir)
+        all_signals = {}
+        for file in pickle_files:
+            with open(os.path.join(self.signal_dir, file), 'rb') as content:
+                signals = pickle.load(content)
+                all_signals.update(signals)
+        # shuffle
+        signal_items = list(all_signals.items())
+        random.shuffle(signal_items)
+        signals_shuffle = {key:
+                               torch.tensor(
+                                   np.stack([value]*3, axis=-1),
+                                   dtype=torch.float) for key, value in signal_items}
+        return all_signals

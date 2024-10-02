@@ -11,30 +11,25 @@ from torch.utils.data import DataLoader
 import torch
 import matplotlib.pyplot as plt
 
-warnings.filterwarnings('ignore')
 
-run_pre = False
+pre = Preprocessor(
+    project_dir='data',
+    edf_urls=EDF_URLS,
+    rml_urls=RML_URLS,
+    data_channels=DATA_CHANNELS,
+    classes=CLASSES,
+    clip_length=30,
+    sample_rate=48000,
+    ids_to_process=['00000995']
+)
 
-if run_pre:
-    pre = Preprocessor(
-        project_dir='data',
-        edf_urls=EDF_URLS,
-        rml_urls=RML_URLS,
-        data_channels=DATA_CHANNELS,
-        classes=CLASSES,
-        clip_length=30,
-        sample_rate=48000,
-        ids_to_process=['00000995']
-    )
-
-    pre.run(
-        download=False,
-        dictionary=True,
-        segments=True,
-        create_files=False,
-        mel_frequencies_dict=True,
-        shuffle=False
-    )
+pre.run(
+    download=False,
+    dictionary=True,
+    segments=True,
+    create_files=False,
+    signals_dict=True,
+)
 
 INPUT_SIZE = (224, 224)
 transform = transforms.Compose([
@@ -43,9 +38,15 @@ transform = transforms.Compose([
     ])
 
 train_dataset = MelSpectrogramDataset(
-    os.path.join('data', 'processed', 'signals'),
+    os.path.join('data', 'processed', 'signals', 'train'),
     transform=transform,
     classes=CLASSES)
+
+print(
+    train_dataset.num_classes,
+    train_dataset.classes,
+    train_dataset.patient_ids
+)
 
 train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
 

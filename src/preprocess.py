@@ -3,6 +3,7 @@ import shutil
 import requests
 import xml.dom.minidom
 import numpy as np
+from PIL.ImImagePlugin import number
 from librosa import mel_to_hz, mel_frequencies
 from tqdm import tqdm
 import librosa
@@ -70,7 +71,10 @@ class Preprocessor:
         self.patient_ids = []
         self.label_dictionary = {}
         self.segments_dictionary = {}
-        self.mel_frequency_dictionary = {}
+        self.signal_dictionary = {}
+        self.train_signals = None
+        self.val_signals = None
+        self.test_signals = None
 
         self._create_directory_structure()
 
@@ -413,7 +417,7 @@ class Preprocessor:
             if output_images:
                 self._generate_spectrogram_manually(array=arr[1], output_dir=dest_path, output_images=True)
             else:
-                self.mel_frequency_dictionary[spec_file_name] = self._generate_spectrogram_manually(array=arr[1], output_dir='', output_images=False)
+                self.signal_dictionary[spec_file_name] = self._generate_spectrogram_manually(array=arr[1], output_dir='', output_images=False)
 
     def _train_val_test_split_spectrogram_files(self) -> None:
         """
@@ -450,6 +454,34 @@ class Preprocessor:
         self._move_files(train, 'train')
         self._move_files(validation, 'validation')
         self._move_files(test, 'test')
+
+    def train_val_test_split_signal_data(self, save_pickle:bool=True) -> None:
+        # calculate train val test split indices
+        number_of_samples = len(self.signal_dictionary)
+        assert number_of_samples > 0, "No samples found."
+        train_index = int(np.round(number_of_samples * self.train_size))
+        val_index = int(np.round(number_of_samples) * (1 - self.train_size) / 2) + train_index
+
+        # load and shuffle signals
+        signal_data = list(self.signal_dictionary.items())
+        random.shuffle(signal_data)
+
+        # create datasets
+        train_signals = signal_data[:train_index]
+        val_signals = signal_data[train_index:val_index]
+        test_signals = signal_data[val_index:]
+
+        # return dictionaries
+        self.train_signals = {key: value for key, value in train_signals}
+        self.val_signals = {key: value for key, value in val_signals}
+        self.test_signals = {key:value for key, value in test_signals}
+
+        if save_pickle:
+            for data, folder in zip([self.train_signals, self.val_signals, self.test_signals], ['train', 'val', 'test']):
+                path = os.path.join(self.signals_path, folder)
+                os.makedirs(path, exist_ok=True)
+                with open(os.path.join(path, f'{folder}.pickle'), 'wb') as pickle_file:
+                    pickle.dump(data, pickle_file)
 
     def reshuffle_train_val_test(self) -> None:
         """
@@ -569,16 +601,15 @@ class Preprocessor:
             dictionary: bool = False,
             segments: bool = False,
             create_files: bool = False,
-            mel_frequencies_dict: bool = False,
-            shuffle: bool = False) -> None:
+            signals_dict: bool = False) -> None:
         """
         Runs the preprocessing pipeline.
         The following parameters can be chosen:
         - download: Set to true to download EDF and RML files provided during the initialization.
         - dictionary: Set to true to create a label dictionary (necessary for following steps).
         - segments: Set to true to create a segments dictionary containing the actual signal (necessary for following steps).
-        - create_files: Set to true to create npz, wav and png files.
-        - shuffle: Set to true to shuffle files and move into designated train, validation and test folders.
+        - create_files: Set to true to create npz, wav and png files, randomly shuffled into train, val and test.
+        - signals_dict: Create a dictionary with signal data without saving wav and png files. Saves three pickled datasets for train, val and test.
         :return: None
         """
         self._create_directory_structure()
@@ -602,16 +633,12 @@ class Preprocessor:
             if create_files:
                 self._save_segments_as_npz(patient_id)
                 self._create_all_spectrogram_files_manually(patient_id, output_images=True)
+                self._train_val_test_split_spectrogram_files()
 
-            if mel_frequencies_dict:
+            if signals_dict:
                 self._save_segments_as_npz(patient_id)
                 self._create_all_spectrogram_files_manually(patient_id, output_images=False)
-
-                with open(os.path.join(self.signals_path, 'signals.pickle'), 'wb') as signals_file:
-                    pickle.dump(self.mel_frequency_dictionary, signals_file, protocol=pickle.HIGHEST_PROTOCOL)
-
-        if shuffle:
-            self._train_val_test_split_spectrogram_files()
+                self.train_val_test_split_signal_data()
 
 def get_download_urls(file_path, n_ids:int=5, seed=42) -> tuple:
     """

@@ -1,4 +1,4 @@
-from src.dataset import MelSpectrogramDataset
+from src.dataset import SignalDataset
 from src.preprocess import Preprocessor
 from src.preprocess import get_download_urls
 from src.utils.globals import (

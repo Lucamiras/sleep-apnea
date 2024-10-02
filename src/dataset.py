@@ -46,7 +46,7 @@ class SpectrogramDataset(Dataset):
             """
             return self.classes[file_name.split('.png')[0].split('_')[2]]
 
-class MelSpectrogramDataset(Dataset):
+class SignalDataset(Dataset):
     def __init__(self, signal_dir, transform=None, classes:dict = None, shuffle:bool=False):
         assert classes is not None, "No classes were selected. Not data will be loaded."
         self.signal_dir = signal_dir

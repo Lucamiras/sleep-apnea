@@ -37,7 +37,7 @@ transform = transforms.Compose([
     transforms.ToTensor(),
     ])
 
-train_dataset = MelSpectrogramDataset(
+train_dataset = SignalDataset(
     os.path.join('data', 'processed', 'signals', 'train'),
     transform=transform,
     classes=CLASSES)

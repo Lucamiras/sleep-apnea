@@ -623,22 +623,26 @@ class Preprocessor:
             else os.listdir(self.rml_preprocess_path)
 
         for patient_id in patient_ids_to_process:
+            print(patient_id)
 
             if dictionary:
                 self._create_sequential_label_dictionary(patient_id)
 
             if segments:
                 self._get_edf_segments_from_labels(patient_id)
+                self._save_segments_as_npz(patient_id)
 
             if create_files:
-                self._save_segments_as_npz(patient_id)
                 self._create_all_spectrogram_files_manually(patient_id, output_images=True)
-                self._train_val_test_split_spectrogram_files()
 
             if signals_dict:
-                self._save_segments_as_npz(patient_id)
                 self._create_all_spectrogram_files_manually(patient_id, output_images=False)
-                self.train_val_test_split_signal_data()
+
+        if create_files:
+            self._train_val_test_split_spectrogram_files()
+
+        if signals_dict:
+            self.train_val_test_split_signal_data()
 
 def get_download_urls(file_path, n_ids:int=5, seed=42) -> tuple:
     """

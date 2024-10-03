@@ -57,7 +57,6 @@ class SignalDataset(Dataset):
         self.num_classes = (len(set(classes.values())))
         self.patient_ids = set([patient_id.split('_')[1] for patient_id in self.signals.keys()])
 
-
     def __len__(self):
         return len(self.signals)
 

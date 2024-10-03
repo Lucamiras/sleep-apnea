@@ -20,43 +20,15 @@ pre = Preprocessor(
     classes=CLASSES,
     clip_length=30,
     sample_rate=48000,
-    ids_to_process=['00000995']
 )
 
 pre.run(
     download=False,
-    dictionary=True,
-    segments=True,
+    dictionary=False,
+    segments=False,
     create_files=False,
     signals_dict=True,
 )
 
-INPUT_SIZE = (224, 224)
-transform = transforms.Compose([
-    transforms.Resize(INPUT_SIZE),
-    transforms.ToTensor(),
-    ])
-
-train_dataset = SignalDataset(
-    os.path.join('data', 'processed', 'signals', 'train'),
-    transform=transform,
-    classes=CLASSES)
-
-print(
-    train_dataset.num_classes,
-    train_dataset.classes,
-    train_dataset.patient_ids
-)
-
-train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-
-for batch, labels in train_loader:
-    image = batch[0]
-    sample_image_np = image.permute(1, 2, 0).numpy()  # Change shape from [C, H, W] to [H, W, C]
-
-    # Plot the image
-    plt.imshow(sample_image_np)
-    plt.axis('off')  # Hide the axes
-    plt.show()
-    break
-
+print(len(pre.signal_dictionary))
+print(set(key.split('_')[1] for key in list(pre.signal_dictionary.keys())))

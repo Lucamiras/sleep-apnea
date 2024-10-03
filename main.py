@@ -41,9 +41,7 @@ transform_without_normalization = transforms.Compose([
     ])
 
 train_without_norm = SignalDataset('data/processed/signals/train', transform=transform_without_normalization, classes=CLASSES)
-
-mean, std = get_mean_and_std(train_without_norm)
-mean = list(mean.numpy())
-std = list(std.numpy())
-
-print(mean, std)
+loader = DataLoader(train_without_norm, batch_size=32, shuffle=False)
+for images, labels in loader:
+    print(images)
+    break

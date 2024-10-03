@@ -47,12 +47,11 @@ class SpectrogramDataset(Dataset):
             return self.classes[file_name.split('.png')[0].split('_')[2]]
 
 class SignalDataset(Dataset):
-    def __init__(self, signal_dir, transform=None, classes:dict = None, shuffle:bool=False):
+    def __init__(self, signal_dir, transform=None, classes:dict = None):
         assert classes is not None, "No classes were selected. Not data will be loaded."
         self.signal_dir = signal_dir
         self.transform = transform
         self.classes = classes
-        self.shuffle = shuffle
         self.signals = self._load_data_from_pickle_and_transform()
         self.num_classes = (len(set(classes.values())))
         self.patient_ids = set([patient_id.split('_')[1] for patient_id in self.signals.keys()])
@@ -72,7 +71,6 @@ class SignalDataset(Dataset):
     def _get_label_from_filename(self, file_name):
         return self.classes[file_name.split('_')[2]]
 
-
     def _load_data_from_pickle_and_transform(self):
         # load from pickle
         pickle_files = os.listdir(self.signal_dir)
@@ -81,10 +79,7 @@ class SignalDataset(Dataset):
             with open(os.path.join(self.signal_dir, file), 'rb') as content:
                 signals = pickle.load(content)
                 all_signals.update(signals)
-        # shuffle
-        if self.shuffle:
-            signal_items = list(all_signals.items())
-            random.shuffle(signal_items)
-            all_signals = {key: torch.tensor(np.stack([value]*3, axis=-1), dtype=torch.float)
-                           for key, value in signal_items}
+        signal_items = list(all_signals.items())
+        all_signals = {key: torch.tensor(np.stack([value]*3, axis=-1), dtype=torch.float)
+                       for key, value in signal_items}
         return all_signals

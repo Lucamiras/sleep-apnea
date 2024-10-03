@@ -50,10 +50,10 @@ class SignalDataset(Dataset):
     def __init__(self, signal_dir, transform=None, classes:dict = None, shuffle:bool=False):
         assert classes is not None, "No classes were selected. Not data will be loaded."
         self.signal_dir = signal_dir
-        self.signals = self._load_data_from_pickle_and_transform()
         self.transform = transform
         self.classes = classes
         self.shuffle = shuffle
+        self.signals = self._load_data_from_pickle_and_transform()
         self.num_classes = (len(set(classes.values())))
         self.patient_ids = set([patient_id.split('_')[1] for patient_id in self.signals.keys()])
 

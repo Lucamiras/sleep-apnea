@@ -40,12 +40,10 @@ transform_without_normalization = transforms.Compose([
     transforms.ToTensor()
     ])
 
-train_without_norm = SignalDataset('data/processed/signals/train', transform=transform_without_normalization, classes=CLASSES, shuffle=False)
+train_without_norm = SignalDataset('data/processed/signals/train', transform=transform_without_normalization, classes=CLASSES)
 
 mean, std = get_mean_and_std(train_without_norm)
 mean = list(mean.numpy())
 std = list(std.numpy())
 
 print(mean, std)
-
-

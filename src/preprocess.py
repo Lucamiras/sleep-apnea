@@ -75,6 +75,7 @@ class Config:
 
         # Download config
         self.download_files = download_files
+        self.catalog_filepath = os.path.join(self.project_dir, 'file_catalog.txt')
         self.edf_urls = None
         self.rml_urls = None
 
@@ -139,6 +140,29 @@ class Downloader:
             config (Config): Configuration object containing paths and download settings.
         """
         self.config = config
+
+    def get_download_urls(self, n_ids: int = 5, seed=42) -> tuple:
+        """
+            This function generated the EDF and matching RML URLs needed for the preprocessor.
+            How to use: Download the data catalog file for the PSG Audio dataset and put it somewhere in your file
+            directory. Specify the catalog file path when calling the function.
+            :returns: A tuple with two lists (RML and EDF URLs) as well as a list of unique IDs.
+        """
+        np.random.seed(seed)
+        with open(self.config.catalog_filepath, 'r') as f:
+            content = f.read()
+        urls = content.split('\n')
+        ids = list(x.split('/')[1] for x in set(re.findall(pattern=r'clean/0000[0-9]{4}', string=content)))
+        selected_ids = np.random.choice(a=ids, size=n_ids, replace=True).tolist()
+        selected_rml_urls = []
+        selected_edf_urls = []
+        for s_id in selected_ids:
+            for url in urls:
+                if ('/V3/APNEA_RML_clean/' + s_id in url) and (url.endswith('.rml')):
+                    selected_rml_urls.append(url)
+                if ('/V3/APNEA_EDF/' + s_id in url) and (url.endswith('.edf')):
+                    selected_edf_urls.append(url)
+        return selected_rml_urls, selected_edf_urls, selected_ids
 
     def download_data(self) -> None:
         """
@@ -513,30 +537,6 @@ class DataPreprocessor:
         if self.config.serialize_signals:
             # This will take the processor signals and turn them into shuffled pickle files
             self.serializer.serialize(self.processor.signal_dictionary)
-
-
-def get_download_urls(file_path, n_ids:int=5, seed=42) -> tuple:
-    """
-        This function generated the EDF and matching RML URLs needed for the preprocessor.
-        How to use: Download the data catalog file for the PSG Audio dataset and put it somewhere in your file
-        directory. Specify the catalog file path when calling the function.
-        :returns: A tuple with two lists (RML and EDF URLs) as well as a list of unique IDs.
-    """
-    np.random.seed(seed)
-    with open(file_path, 'r') as f:
-        content = f.read()
-    urls = content.split('\n')
-    ids = list(x.split('/')[1] for x in set(re.findall(pattern=r'clean/0000[0-9]{4}', string=content)))
-    selected_ids = np.random.choice(a=ids, size=n_ids, replace=True).tolist()
-    selected_rml_urls = []
-    selected_edf_urls = []
-    for s_id in selected_ids:
-        for url in urls:
-            if ('/V3/APNEA_RML_clean/' + s_id in url) and (url.endswith('.rml')):
-                selected_rml_urls.append(url)
-            if ('/V3/APNEA_EDF/' + s_id in url) and (url.endswith('.edf')):
-                selected_edf_urls.append(url)
-    return selected_rml_urls, selected_edf_urls, selected_ids
 
 def helper_reset_files(move_from: str = 'retired', move_to: str = 'downloads'):
     for folder_type in ['edf', 'rml']:

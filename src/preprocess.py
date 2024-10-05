@@ -57,8 +57,8 @@ class Config:
     """
 
     def __init__(self,
-                 project_dir: str,
                  classes: dict,
+                 project_dir: str = 'data',
                  download_files: bool = False,
                  extract_signals: bool = True,
                  process_signals: bool = True,

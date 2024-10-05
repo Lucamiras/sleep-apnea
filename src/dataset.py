@@ -62,7 +62,7 @@ class SignalDataset(Dataset):
     def __getitem__(self, idx):
         signal_filename, signal_data = list(self.signals.items())[idx]
         signal_label = self._get_label_from_filename(signal_filename)
-        image = Image.fromarray(signal_data.astype(np.uint8)).convert('RGB')
+        image = Image.fromarray(signal_data.astype(np.uint8))
         one_hot_label = f.one_hot(torch.tensor(signal_label), num_classes=self.num_classes)
         if self.transform:
             signal_data = self.transform(image)

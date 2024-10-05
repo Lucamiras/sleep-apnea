@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 import torch
 import matplotlib.pyplot as plt
 
-run_pre = True
+run_pre = False
 
 if run_pre:
     pre = Preprocessor(
@@ -45,12 +45,12 @@ train_without_norm = SignalDataset('data/processed/signals/train', transform=tra
 mean, std = get_mean_and_std(train_without_norm)
 mean = list(mean.numpy())
 std = list(std.numpy())
+print(mean, std)
 
-dataloader = DataLoader(train_without_norm, batch_size=32, shuffle=False)
+dataloader = DataLoader(train_without_norm, batch_size=len(train_without_norm), shuffle=False)
 
 for images, _ in dataloader:
-    sample_image_np = images[0].permute(1, 2, 0).numpy()  # Change shape from [C, H, W] to [H, W, C]
-    plt.imshow(sample_image_np, cmap='inferno')
-    plt.axis('off')  # Hide the axes
-    plt.show()
-    break
+    print(len(images))
+    mean = images.mean()
+    std = images.std()
+print(mean, std)

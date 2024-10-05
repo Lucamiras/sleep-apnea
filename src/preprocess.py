@@ -3,8 +3,6 @@ import shutil
 import requests
 import xml.dom.minidom
 import numpy as np
-from PIL.ImImagePlugin import number
-from librosa import mel_to_hz, mel_frequencies
 from tqdm import tqdm
 import librosa
 import librosa.feature
@@ -222,13 +220,15 @@ class Preprocessor:
         print(f"Found {len(all_events)} events and non-events for {rml_folder}.")
         self.label_dictionary[rml_folder] = all_events
 
-    def _overlaps(self, segment_start, segment_end, label_start, label_end) -> bool:
+    @staticmethod
+    def _overlaps(segment_start, segment_end, label_start, label_end) -> bool:
         """This function checks if at last 50% of a labelled event is covered by
         :return: True / False"""
         mid = (label_start + label_end) / 2
         return segment_start < mid < segment_end
 
-    def _no_change(self, array):
+    @staticmethod
+    def _no_change(array):
         return (array.sum() / len(array)) == array[0]
 
     def _read_out_single_edf_file(self, edf_folder: str) -> np.array:
@@ -329,68 +329,10 @@ class Preprocessor:
         plt.savefig(output_dir, bbox_inches='tight', pad_inches=0)
         plt.close()
 
-    def hz_to_mel(self, hz):
-        return 2595 * np.log10(1 + hz / 700.)
-
-    def mel_to_hz(self, mel):
-        return 700 * (10**(mel / 2595.) -1)
-
-    def _generate_spectrogram_manually(self, array:list, output_dir:str, output_images:bool):
-        signal = array
-        n_fft = 2084 #n_fft
-        hop_length = 512
-        n_mels = 128
-        num_frames = int(np.ceil(float(len(signal) - n_fft) / hop_length)) + 1
-        pad_amount = int((num_frames - 1) * hop_length + n_fft - len(signal))
-        padded_signal = np.pad(signal, (0, pad_amount), mode='constant')
-        frames = np.stack([
-            padded_signal[i * hop_length : i * hop_length + n_fft]
-            for i in range(num_frames)
-        ])
-        window = np.hamming(n_fft)
-        windowed_frames = frames * window
-        fft_frames = np.fft.rfft(windowed_frames, n=n_fft, axis=1)
-        power_spectrogram = np.abs(fft_frames) ** 2
-
-        f_min = 0
-        f_max = self.sample_rate / 2
-        mel_min = self.hz_to_mel(f_min)
-        mel_max = self.hz_to_mel(f_max)
-        mel_points = np.linspace(mel_min, mel_max, n_mels + 2)
-        hz_points = self.mel_to_hz(mel_points)
-        bin_numbers = np.floor((n_fft + 1) * hz_points / self.sample_rate).astype(int)
-        filterbank = np.zeros((n_mels, int(n_fft / 2 + 1)))
-        for m in range(1, n_mels + 1):
-            f_m_minus = bin_numbers[m - 1]
-            f_m = bin_numbers[m]
-            f_m_plus = bin_numbers[m + 1]
-            for k in range(f_m, f_m_plus):
-                filterbank[m - 1, k] = (k - bin_numbers[m - 1]) / (bin_numbers[m] - bin_numbers[m - 1])
-            for k in range(f_m, f_m_plus):
-                filterbank[m - 1, k] = (bin_numbers[m + 1] - k) / (bin_numbers[m + 1] - bin_numbers[m])
-
-        mel_spectrogram = np.dot(power_spectrogram, filterbank.T)
-        mel_spectrogram = np.where(mel_spectrogram == 0, np.finfo(float).eps, mel_spectrogram)
-        log_mel_spectrogram = 10 * np.log10(mel_spectrogram)
-        times = np.arange(num_frames) * hop_length / self.sample_rate
-        mel_frequencies = mel_to_hz(mel_points[1:-1])
-
-        if output_images:
-            plt.figure(figsize=(10,5))
-            extent = [times[0], times[-1], mel_frequencies[0], mel_frequencies[-1]]
-            plt.imshow(
-                log_mel_spectrogram.T,
-                aspect='auto',
-                origin='lower',
-                extent=extent,
-                cmap='inferno'
-            )
-            plt.axis('off')
-            plt.tight_layout()
-            plt.savefig(output_dir, bbox_inches='tight', pad_inches=0)
-            plt.close()
-        else:
-            return log_mel_spectrogram.T
+    def extract_audio_features(self, signal_array:list):
+        mel_spectrogram = librosa.feature.melspectrogram(y=np.array(signal_array), sr=self.sample_rate)
+        mel_spectrogram = librosa.power_to_db(mel_spectrogram)
+        return mel_spectrogram
 
     def _create_all_spectrogram_files(self) -> None:
         """
@@ -408,16 +350,12 @@ class Preprocessor:
             self._generate_spectrogram(wav_path, output_dir=dest_path)
             shutil.move(wav_path, os.path.join(retired_audio, wav_file))
 
-    def _create_all_spectrogram_files_manually(self, patient_id:str, output_images:bool):
+    def _create_all_spectrogram_files_as_arrays(self, patient_id:str):
         npz_file = f"{patient_id}.npz"
         data = self._load_segments_from_npz(npz_file=npz_file)
         for index, arr in tqdm(enumerate(data)):
             spec_file_name = f"{index:05d}_{patient_id}_{arr[0]}"
-            dest_path = os.path.join(self.spectrogram_path, spec_file_name)
-            if output_images:
-                self._generate_spectrogram_manually(array=arr[1], output_dir=dest_path, output_images=True)
-            else:
-                self.signal_dictionary[spec_file_name] = self._generate_spectrogram_manually(array=arr[1], output_dir='', output_images=False)
+            self.signal_dictionary[spec_file_name] = self.extract_audio_features(arr[1])
 
     def _train_val_test_split_spectrogram_files(self) -> None:
         """
@@ -582,8 +520,6 @@ class Preprocessor:
         This function moves the processed edf and rml files.
         :returns: None
         """
-        processed_edf_folders = os.listdir(self.edf_preprocess_path)
-        processed_rml_folders = os.listdir(self.rml_preprocess_path)
 
         for folder in ['edf', 'rml']:
             os.makedirs(os.path.join(self.retired_path, folder), exist_ok=True)
@@ -633,10 +569,10 @@ class Preprocessor:
                 self._save_segments_as_npz(patient_id)
 
             if create_files:
-                self._create_all_spectrogram_files_manually(patient_id, output_images=True)
+                self._create_all_spectrogram_files()
 
             if signals_dict:
-                self._create_all_spectrogram_files_manually(patient_id, output_images=False)
+                self._create_all_spectrogram_files_as_arrays(patient_id)
 
         if create_files:
             self._train_val_test_split_spectrogram_files()

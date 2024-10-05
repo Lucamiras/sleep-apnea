@@ -62,7 +62,7 @@ class SignalDataset(Dataset):
     def __getitem__(self, idx):
         signal_filename, signal_data = list(self.signals.items())[idx]
         signal_label = self._get_label_from_filename(signal_filename)
-        image = Image.fromarray(signal_data.astype(np.uint8))
+        image = Image.fromarray(signal_data.astype(np.uint8)).convert('RGB')
         one_hot_label = f.one_hot(torch.tensor(signal_label), num_classes=self.num_classes)
         if self.transform:
             signal_data = self.transform(image)
@@ -80,6 +80,5 @@ class SignalDataset(Dataset):
                 signals = pickle.load(content)
                 all_signals.update(signals)
         signal_items = list(all_signals.items())
-        all_signals = {key: np.stack([value]*3, axis=-1)
-                       for key, value in signal_items}
+        all_signals = {key: value for key, value in signal_items}
         return all_signals

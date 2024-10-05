@@ -618,3 +618,74 @@ def helper_reset_files(move_from: str = 'retired', move_to: str = 'downloads'):
         print('Patient IDs do not match')
     print("EDF patient IDs:", set(edf_patient_ids))
     print("RML patient IDs:", set(rml_patient_ids))
+
+class Config:
+    """
+    This class serves as the config class for the preprocessing. Use the default values or
+    override them using the 'overrides' dictionary.
+    """
+    def __init__(self,
+                 project_dir: str,
+                 classes: dict,
+                 download_files: bool = False,
+                 extract_signals: bool = True,
+                 process_signals: bool = True,
+                 serialize_signals: bool = True,
+                 overrides: dict = None):
+
+        if overrides:
+            for key, value in overrides.items():
+                setattr(self, key, value)
+
+        # Basic inputs
+        self.project_dir = project_dir
+        self.classes = classes
+
+        # Download config
+        self.download_files = download_files
+        self.edf_urls = None
+        self.rml_urls = None
+
+        # Extract signals
+        self.extract_signals = extract_signals
+        self.data_channels = ['Mic']
+        self.edf_step_size = 10_000_000
+        self.sample_rate = 48_000
+        self.clip_length = 30
+
+        # Process signals
+        self.process_signals = process_signals
+        self.ids_to_process = None
+
+        # Serialize signals
+        self.serialize_signals = serialize_signals
+        self.train_size = 0.8
+
+        # Paths
+        self.edf_download_path = os.path.join(self.project_dir, 'downloads', 'edf')
+        self.rml_download_path = os.path.join(self.project_dir, 'downloads', 'rml')
+        self.edf_preprocess_path = os.path.join(self.project_dir, 'preprocess', 'edf')
+        self.rml_preprocess_path = os.path.join(self.project_dir, 'preprocess', 'rml')
+        self.npz_path = os.path.join(self.project_dir, 'preprocess', 'npz')
+        self.audio_path = os.path.join(self.project_dir, 'processed', 'audio')
+        self.spectrogram_path = os.path.join(self.project_dir, 'processed', 'spectrogram')
+        self.signals_path = os.path.join(self.project_dir, 'processed', 'signals')
+        self.retired_path = os.path.join(self.project_dir, 'retired')
+        self._create_directory_structure()
+
+    def _create_directory_structure(self) -> None:
+        """
+        Creates directory structure necessary to download and process data.
+        returns: None
+        """
+        os.makedirs(self.edf_download_path, exist_ok=True)
+        os.makedirs(self.rml_download_path, exist_ok=True)
+        os.makedirs(self.edf_preprocess_path, exist_ok=True)
+        os.makedirs(self.rml_preprocess_path, exist_ok=True)
+        os.makedirs(self.npz_path, exist_ok=True)
+        os.makedirs(self.audio_path, exist_ok=True)
+        os.makedirs(self.spectrogram_path, exist_ok=True)
+        os.makedirs(self.signals_path, exist_ok=True)
+        os.makedirs(self.retired_path, exist_ok=True)
+
+

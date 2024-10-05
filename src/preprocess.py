@@ -107,11 +107,8 @@ class Preprocessor:
     def _download_data(self) -> None:
         """
         Downloads the files specified in the edf and rml urls.
-        :returns: None
+        returns: None
         """
-        logging.info(
-            f"2 --- Starting download of {len(self.edf_urls)} EDF files and {len(self.rml_urls)} RML files ---")
-
         for url in tqdm(self.edf_urls):
             response = requests.get(url)
             file_name = url[-28:].replace('%5B', '[').replace('%5D', ']')
@@ -139,6 +136,7 @@ class Preprocessor:
 
         if len(self.rml_urls) == len(os.listdir(self.rml_download_path)):
             print("Successfully downloaded RML files.")
+
 
     def _move_selected_downloads_to_preprocessing(self):
         """
@@ -688,4 +686,57 @@ class Config:
         os.makedirs(self.signals_path, exist_ok=True)
         os.makedirs(self.retired_path, exist_ok=True)
 
+class Downloader:
+    def __init__(self, config):
+        self.config = config
 
+    def download_data(self) -> None:
+        """
+        Downloads the files specified in the edf and rml urls.
+        returns: None
+        """
+        for url in tqdm(self.config.edf_urls):
+            response = requests.get(url)
+            file_name = url[-28:].replace('%5B', '[').replace('%5D', ']')
+            file_path = os.path.join(self.config.edf_download_path, file_name)
+            if response.status_code == 200:
+                with open(file_path, "wb") as file:
+                    file.write(response.content)
+                print(f"Downloaded {file_name} completed successfully.")
+            else:
+                print(f"Failed to download the file. Status code: {response.status_code}")
+
+        for url in tqdm(self.config.rml_urls):
+            response = requests.get(url)
+            file_name = url[-19:].replace('%5B', '[').replace('%5D', ']')
+            file_path = os.path.join(self.config.rml_download_path, file_name)
+            if response.status_code == 200:
+                with open(file_path, "wb") as file:
+                    file.write(response.content)
+                print(f"Download of {file_name} completed successfully.")
+            else:
+                print(f"Failed to download the file. Status code: {response.status_code}")
+
+        if len(self.config.edf_urls) == len(os.listdir(self.config.edf_download_path)):
+            print("Successfully downloaded EDF files.")
+
+        if len(self.config.rml_urls) == len(os.listdir(self.config.rml_download_path)):
+            print("Successfully downloaded RML files.")
+
+class DataPreprocessor:
+    def __init__(self, downloader, config):
+        self.downloader = downloader
+        self.config = config
+
+    def run(self):
+        if self.config.download_files:
+            self.downloader.download_data()
+
+        if self.config.extract_signals:
+            pass
+
+        if self.config.process_signals:
+            pass
+
+        if self.config.serialize_signals:
+            pass

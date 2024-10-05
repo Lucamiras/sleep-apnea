@@ -6,8 +6,6 @@ import numpy as np
 from tqdm import tqdm
 import librosa
 import librosa.feature
-import matplotlib.pyplot as plt
-from scipy.io.wavfile import write
 import gc
 import random
 import logging
@@ -22,9 +20,42 @@ logging.basicConfig(level=logging.INFO,
 
 class Config:
     """
-    This class serves as the config class for the preprocessing. Use the default values or
-    override them using the 'overrides' dictionary.
+    Configuration class for managing all settings and paths required by the data processing pipeline.
+
+    Attributes:
+        project_dir (str): Root directory where all preprocessing will take place.
+        classes (dict): Dictionary with class names and integer values. Example: {"NoApnea":0, "ObstructiveApnea":1}.
+        download_files (bool): Specify if the preprocessor should include the downloading step.
+        extract_signals (bool): Specify if the preprocessor should include the extraction step.
+        process_signals (bool): Specify if the preprocessor should include the processing step.
+        serialize_signals (bool): Specify if the preprocessor should include the serialization step.
+        overrides (dict): Overrides of any other parameters can be changed via the overrides method by passing a
+        dictionary with attribute names as keys and parameters as values.
+        edf_urls (list): A list with EDF download urls. Default: None
+        rml_urls (list): A list with RML download urls. Default: None
+        data_channels (str): The data channel to extract from the EDF file. Default: 'Mic'
+        edf_step_size (int): Amount of signals to process during EDF extraction. This is necessary as to not overfill
+        memory. Default: 10_000_000
+        sample_rate (int): The appropriate sample rate for the signal. Default: 48_000
+        clip_length (int): Length of extracted samples that will be used for training. Default: 30
+        ids_to_process (list): List of IDs in case not all files from download / preprocess folders should be considered.
+        Default: None
+        train_size (float): How much of the total samples should be considered for training. Default: 0.8
+        edf_download_path (str): Path in root folder.
+        rml_download_path (str): Path in root folder.
+        edf_preprocess_path (str): Path in root folder.
+        rml_preprocess_path (str): Path in root folder.
+        npz_path (str): Path in root folder.
+        audio_path (str): Path in root folder.
+        spectrogram_path (str): Path in root folder.
+        signals_path (str): Path in root folder.
+        retired_path (str): Path in root folder.
+
+    Methods:
+        _create_directory_structure():
+            Creates the folders in the root directory specified in the project_dir attribute.
     """
+
     def __init__(self,
                  project_dir: str,
                  classes: dict,
@@ -90,13 +121,31 @@ class Config:
         os.makedirs(self.retired_path, exist_ok=True)
 
 class Downloader:
+    """
+    A class responsible for downloading EDF and RML files from specified URLs.
+
+    Attributes:
+        config (Config): An instance of the Config class containing download settings and file paths.
+
+    Methods:
+        download_data():
+            Downloads files from URLs specified in the config.
+    """
     def __init__(self, config):
+        """
+        Initializes the Downloader with the given configuration.
+
+        Args:
+            config (Config): Configuration object containing paths and download settings.
+        """
         self.config = config
 
     def download_data(self) -> None:
         """
-        Downloads the files specified in the edf and rml urls.
-        returns: None
+        Downloads files from URLs specified in the config.
+
+        Returns:
+            None
         """
         for url in tqdm(self.config.edf_urls):
             response = requests.get(url)
@@ -127,6 +176,17 @@ class Downloader:
             print("Successfully downloaded RML files.")
 
 class Extractor:
+    """
+    A class responsible for extracting signal data from EDF files using labels from RML files .
+
+    Attributes:
+        config (Config): An instance of the Config class containing download settings and file paths.
+
+    Methods:
+        extract():
+            Starts the extraction process and returns a segment dictionary saved as npz.
+
+    """
     def __init__(self, config):
         self.config = config
         self.label_dictionary = {}
@@ -333,6 +393,10 @@ class Extractor:
         return edf_ids == rml_ids
 
 class Processor:
+    """
+    A class responsible for processing extracted signal data and turning them into usable audio features such as
+    spectrograms, mel spectrograms and MFCCs.
+    """
     def __init__(self, config):
         self.config = config
         self.signal_dictionary = {}
@@ -379,6 +443,9 @@ class Processor:
         return len(os.listdir(self.config.npz_path)) > 0
 
 class Serializer:
+    """
+    A class responsible for shuffling, splitting and serializing data.
+    """
     signal_dictionary = None
     train_signals = None
     val_signals = None

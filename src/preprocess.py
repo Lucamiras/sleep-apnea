@@ -434,9 +434,9 @@ class Processor:
         patient_ids_to_process = self.config.ids_to_process if self.config.ids_to_process is not None \
             else [npz_filename.split('.npz')[0] for npz_filename in os.listdir(self.config.npz_path)]
 
+        print("PROCESSOR -- Building audio features for the following IDs:")
+        print(patient_ids_to_process)
         for patient_id in patient_ids_to_process:
-            print("PROCESSOR -- Building audio features for the following IDs:")
-            print(patient_ids_to_process)
             self._create_all_spectrogram_files_as_arrays(patient_id)
 
     def _create_all_spectrogram_files_as_arrays(self, patient_id:str):
@@ -508,8 +508,13 @@ class Serializer:
     def _save_as_pickle(self):
         for data, folder in zip([self.train_signals, self.val_signals, self.test_signals], ['train', 'val', 'test']):
             path = os.path.join(self.config.signals_path, folder)
+            filename = f'{folder}.pickle'
             os.makedirs(path, exist_ok=True)
-            with open(os.path.join(path, f'{folder}.pickle'), 'wb') as pickle_file:
+            if filename in os.listdir(path):
+                with open(os.path.join(path, filename), 'rb') as existing_pickle_file:
+                    existing_signals = pickle.load(existing_pickle_file)
+                data = {**data, **existing_signals}
+            with open(os.path.join(path, filename), 'wb') as pickle_file:
                 pickle.dump(data, pickle_file)
 
 

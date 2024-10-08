@@ -6,6 +6,7 @@ import numpy as np
 from tqdm import tqdm
 import librosa
 import librosa.feature
+from librosa.util import normalize
 import gc
 import random
 import logging
@@ -85,6 +86,7 @@ class Config:
         self.edf_step_size = 10_000_000
         self.sample_rate = 48_000
         self.clip_length = 30
+        self.n_mels = 128
 
         # Process signals
         self.process_signals = process_signals
@@ -459,9 +461,26 @@ class Processor:
         return data
 
     def _get_audio_features(self, signal_array:list):
-        mel_spectrogram = librosa.feature.melspectrogram(y=np.array(signal_array), sr=self.config.sample_rate)
-        mel_spectrogram = librosa.power_to_db(mel_spectrogram)
-        return mel_spectrogram
+        y = np.array(signal_array)
+
+        # MEL SPECTROGRAM
+        mel_spectrogram = librosa.feature.melspectrogram(
+            y=y,
+            sr=self.config.sample_rate,
+            n_mels=self.config.n_mels
+        )
+        mel_spectrogram = librosa.power_to_db(mel_spectrogram, ref=np.max)
+
+        # MFCC
+        mfcc = librosa.feature.mfcc(
+            y=y,
+            sr=self.config.sample_rate,
+            n_mels=self.config.n_mels
+        )
+
+        audio_features = (mel_spectrogram, mfcc)
+
+        return audio_features
 
     def _check_folder_contains_files(self):
         return len(os.listdir(self.config.npz_path)) > 0

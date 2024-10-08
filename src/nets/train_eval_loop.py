@@ -11,7 +11,7 @@ def train_epoch(model, train_loader, criterion, optimizer, device):
     all_labels = []
 
     for images, labels in tqdm(train_loader):
-        images = images.to(device)
+        images = images.squeeze().to(device)
         labels = labels.float().to(device)
 
         optimizer.zero_grad()

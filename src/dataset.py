@@ -51,7 +51,8 @@ class SignalDataset(Dataset):
         self.signal_dir = signal_dir
         self.transform = transform
         self.classes = classes
-        self.signals = self._load_data_from_pickle_and_transform()
+        self.class_names = [key for key, value in self.classes.items()]
+        self.signals = self._load_data_from_pickle()
         self.num_classes = (len(set(classes.values())))
         self.patient_ids = set([patient_id.split('_')[1] for patient_id in self.signals.keys()])
 
@@ -59,18 +60,29 @@ class SignalDataset(Dataset):
         return len(self.signals)
 
     def __getitem__(self, idx):
+        # Load signal data and file name
         signal_filename, signal_data = list(self.signals.items())[idx]
+
+        # Process label
         signal_label = self._get_label_from_filename(signal_filename)
-        image = Image.fromarray(signal_data.astype(np.uint8))
         one_hot_label = f.one_hot(torch.tensor(signal_label), num_classes=self.num_classes)
-        if self.transform:
-            signal_data = self.transform(image)
+
+        # Process features
+        transformed_tensors = []
+        for audio_feature in signal_data:
+            audio_feature_image = Image.fromarray(audio_feature.astype(np.uint8))
+            if self.transform:
+                audio_feature_image = self.transform(audio_feature_image)
+            transformed_tensors.append(audio_feature_image)
+        transformed_tensors = tuple(transformed_tensors)
+        signal_data = torch.cat(transformed_tensors, dim=0)
+
         return signal_data, one_hot_label
 
     def _get_label_from_filename(self, file_name):
         return self.classes[file_name.split('_')[2]]
 
-    def _load_data_from_pickle_and_transform(self):
+    def _load_data_from_pickle(self):
         # load from pickle
         pickle_files = os.listdir(self.signal_dir)
         all_signals = {}
@@ -79,5 +91,6 @@ class SignalDataset(Dataset):
                 signals = pickle.load(content)
                 all_signals.update(signals)
         signal_items = list(all_signals.items())
-        all_signals = {key: value for key, value in signal_items}
+        all_signals = {key: value for key, value in signal_items
+                       if key.split('_')[2] in self.class_names}
         return all_signals

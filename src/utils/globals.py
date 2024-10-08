@@ -14,10 +14,10 @@ DATA_CHANNELS = 'Mic'
 
 CLASSES = {
     "NoApnea": 0,
-    "Hypopnea": 1,
-    "ObstructiveApnea": 2,
-    "MixedApnea": 3,
-    "CentralApnea": 4,
+    #"Hypopnea": 1,
+    "ObstructiveApnea": 1,
+    #"MixedApnea": 3,
+    #"CentralApnea": 4,
 }
 
 LEARNING_RATE = 0.001

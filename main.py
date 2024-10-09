@@ -45,7 +45,7 @@ pre = DataPreprocessor(
     serializer,
     config)
 
-pre.run()
+# pre.run()
 
 INPUT_SIZE = (224, 224)
 transforms = transforms.Compose([
@@ -54,13 +54,4 @@ transforms = transforms.Compose([
 ])
 
 dataset = SignalDataset(os.path.join(config.signals_path, 'train'), transform=transforms, classes=config.classes)
-dataloader = DataLoader(dataset, batch_size=32, shuffle=False)
-
-for images, labels in dataloader:
-    print(images.shape)
-    print(labels.shape)
-    im = images[0]
-    im = im.permute(1,2,0)
-    plt.imshow(im, cmap='inferno')
-    plt.show()
-    break
+dataloader = DataLoader(dataset, batch_size=len(dataset), shuffle=False)

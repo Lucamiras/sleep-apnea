@@ -1,6 +1,7 @@
 from torch.utils.data import DataLoader
 from src.dataset import SignalDataset
 from torchvision import transforms
+import torch
 
 
 def get_mean_and_std(path:str, input_size:tuple, classes:dict):
@@ -31,8 +32,8 @@ def get_mean_and_std(path:str, input_size:tuple, classes:dict):
     )
 
     for images, _ in dataloader:
-        mean = images.mean()
-        std = images.std()
+        mean = torch.mean(images, 1)
+        std = torch.std(images, 1)
 
-    return mean, std
+        return mean, std
         

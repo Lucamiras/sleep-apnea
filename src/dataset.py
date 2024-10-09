@@ -62,22 +62,23 @@ class SignalDataset(Dataset):
     def __getitem__(self, idx):
         # Load signal data and file name
         signal_filename, signal_data = list(self.signals.items())[idx]
-
         # Process label
         signal_label = self._get_label_from_filename(signal_filename)
         one_hot_label = f.one_hot(torch.tensor(signal_label), num_classes=self.num_classes)
-
         # Process features
-        transformed_tensors = []
-        for audio_feature in signal_data:
-            audio_feature_image = Image.fromarray(audio_feature.astype(np.uint8))
-            if self.transform:
-                audio_feature_image = self.transform(audio_feature_image)
-            transformed_tensors.append(audio_feature_image)
-        transformed_tensors = tuple(transformed_tensors)
-        signal_data = torch.cat(transformed_tensors, dim=0)
+        resized_features = []
+        for feature in signal_data:
+            image = Image.fromarray(feature.astype(np.uint8))
+            resized_audio_feature = image.resize((224,224))
+            resized_audio_feature = np.array(resized_audio_feature)
+            resized_features.append(resized_audio_feature)
+        resized_features = np.stack(resized_features, axis=-1)
 
-        return signal_data, one_hot_label
+        image = Image.fromarray(resized_features.astype(np.uint8))
+        if self.transform:
+            image = self.transform(image)
+
+        return image, one_hot_label
 
     def _get_label_from_filename(self, file_name):
         return self.classes[file_name.split('_')[2]]

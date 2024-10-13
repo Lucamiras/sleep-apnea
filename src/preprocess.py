@@ -1,12 +1,16 @@
 import os
 import shutil
+from symbol import factor
+
 import requests
 import xml.dom.minidom
 import numpy as np
+from prompt_toolkit.key_binding.bindings.named_commands import self_insert
 from tqdm import tqdm
 import librosa
 import librosa.feature
-from librosa.util import normalize
+import torch
+import torchaudio
 import gc
 import random
 import logging
@@ -100,6 +104,7 @@ class Config:
         # Paths
         self.edf_download_path = os.path.join(self.project_dir, 'downloads', 'edf')
         self.rml_download_path = os.path.join(self.project_dir, 'downloads', 'rml')
+        self.ambient_noise_path = os.path.join(self.project_dir, 'downloads', 'ambient')
         self.edf_preprocess_path = os.path.join(self.project_dir, 'preprocess', 'edf')
         self.rml_preprocess_path = os.path.join(self.project_dir, 'preprocess', 'rml')
         self.npz_path = os.path.join(self.project_dir, 'preprocess', 'npz')
@@ -539,6 +544,92 @@ class Serializer:
                 data = {**data, **existing_signals}
             with open(os.path.join(path, filename), 'wb') as pickle_file:
                 pickle.dump(data, pickle_file)
+
+class Augmenter:
+    """
+    This class augments a part of the training data with either Gaussian noise or ambient sounds from wav files.
+    To determine the augment ratios, pass a dictionary with the values. For example:
+    augment_ratios:
+    {"gaussian":0.2, "ambient":0.3}
+    will augment 20% of randomly chosen training samples with Gaussian noise and 30% of randomly chosen training samples
+    with ambient noise.
+    """
+    snr_db_low = 10
+    snr_db_high = 70
+
+    def __init__(self, augment_ratios:dict, config:Config):
+        self.config = config
+        self.augment_ratios = augment_ratios
+        self.ambient_clips = self._generate_ambient_samples()
+
+    def _generate_ambient_samples(self):
+        assert len(os.listdir(self.config.ambient_noise_path)) != 0, "No ambient files found"
+        assert 'wav' in [filename.split('.')[-1] for filename in os.listdir(self.config.ambient_noise_path)], "No wav files found"
+
+        ambient_wav_files = [filename for filename in os.listdir(self.config.ambient_noise_path)
+                             if filename.split('.')[-1] == 'wav']
+
+        ambient_clips = []
+        ambient_clip_length = self.config.clip_length * self.config.sample_rate
+
+        for ambient_file in ambient_wav_files:
+            ambient_file_path = os.path.join(self.config.ambient_noise_path, ambient_file)
+            noise_waveform, sr = torchaudio.load(ambient_file_path)
+            noise_waveform_resampled_mono = torchaudio.functional.resample(noise_waveform, self.config.sample_rate, sr)[0]
+            for i in range(0, noise_waveform_resampled_mono.shape[1], ambient_clip_length):
+                if i + ambient_clip_length < noise_waveform_resampled_mono.shape[1]:
+                    clip = noise_waveform_resampled_mono[i, i+ambient_clip_length]
+                    ambient_clips.append(torch.tensor(clip))
+
+        return ambient_clips
+
+    def _augment_with_ambient_clip(self, train_spectrogram):
+        random_clip = np.random.choice(self.ambient_clips)
+        snr_db = np.random.choice(range(self.snr_db_low, self.snr_db_high))
+        if not isinstance(train_spectrogram, torch.Tensor):
+            train_spectrogram = torch.tensor(train_spectrogram)
+        noise_power = torch.mean(random_clip ** 2)
+        signal_power = torch.mean(train_spectrogram ** 2)
+        noise_scale = torch.sqrt(signal_power / (10 ** (10 / snr_db) * noise_power))
+        scaled_noise_spectrogram = random_clip * noise_scale
+        augmented_spectrogram = train_spectrogram + scaled_noise_spectrogram
+        augmented_spectrogram = augmented_spectrogram.numpy()
+        return augmented_spectrogram
+
+    def _augment_with_gaussian_noise(self, train_spectrogram):
+        if not isinstance(train_spectrogram, torch.Tensor):
+            train_spectrogram = torch.tensor(train_spectrogram)
+        noise = torch.randn_like(train_spectrogram) * 0.1 + 0
+        snr_db = np.random.choice(range(self.snr_db_low, self.snr_db_high))
+        augmented_spectrogram = train_spectrogram + noise * snr_db
+        augmented_spectrogram = augmented_spectrogram.numpy()
+        return augmented_spectrogram
+
+    def augment(self):
+        with open(os.path.join(self.config.signals_path, 'train'), 'rb') as pickle_file:
+            train_data = pickle.load(pickle_file)
+
+        num_samples = len(train_data)
+        gaussian_samples = int(num_samples * self.augment_ratios['gaussian'])
+        ambient_samples = int(num_samples * self.augment_ratios['ambient'])
+
+        random_specs_gaussian = np.random.choice(list(train_data.items()), gaussian_samples)
+        random_specs_ambient = np.random.choice(list(train_data.items()), ambient_samples)
+
+        augmented_specs = {}
+
+        for filename, train_sample in random_specs_gaussian:
+            augmented_spec = self._augment_with_gaussian_noise(train_sample)
+            pass
+            # continue here
+            # augment filename with "AUG"
+            # add to dictionary with key: filename, value: augmented_spec
+
+        for filename, train_sample in random_specs_ambient:
+            augmented_spec = self._augment_with_ambient_clip(train_sample)
+            pass
+
+        return augmented_specs
 
 
 class DataPreprocessor:

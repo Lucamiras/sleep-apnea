@@ -86,6 +86,6 @@ for images, labels in train_loader:
     print(images.shape)
     image = images[0][0]
     print(image.shape)
-    plt.imshow(image)
+    plt.imshow(image, cmap='inferno')
     plt.show()
     break

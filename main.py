@@ -17,7 +17,8 @@ from src.preprocess import (
     Extractor,
     Processor,
     Serializer,
-    DataPreprocessor
+    DataPreprocessor,
+    Augmenter
 )
 from src.utils.globals import (
     CLASSES
@@ -27,11 +28,12 @@ from src.utils.globals import (
 config = Config(
     classes=CLASSES,
     download_files=False,
-    extract_signals=False,
+    extract_signals=True,
     process_signals=True,
     serialize_signals=True,
 )
-config.ids_to_process = ['00000995']
+config.ids_to_process = ['00001006']
+config.audio_features = ['mel_spectrogram']
 downloader = Downloader(config)
 extractor = Extractor(config)
 processor = Processor(config)
@@ -45,47 +47,11 @@ pre = DataPreprocessor(
     serializer,
     config)
 
-# pre.run()
+#pre.run()
 
-INPUT_SIZE = (224, 224)
-transform = transforms.Compose([
-    transforms.Resize(INPUT_SIZE),
-    transforms.ToTensor()
-])
+augmenter = Augmenter({
+    "gaussian": 0.2,
+    "ambient": 0.2
+}, config)
 
-dataset = SignalDataset(os.path.join(config.signals_path, 'train'), transform=transform, classes=config.classes)
-dataloader = DataLoader(dataset, batch_size=len(dataset), shuffle=False)
-
-mean, std = None, None
-
-for images, labels in dataloader:
-    batch_size = images.size(0)
-    images = images.view(batch_size, images.size(1), -1)
-    mean = images.mean(dim=(0,2))
-    std = images.std(dim=(0,2))
-
-transform = transforms.Compose([
-    transforms.Resize(INPUT_SIZE),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.1,0.1], std=[0.1,0.1]),
-    ])
-
-train_dataset = SignalDataset(os.path.join(config.signals_path, 'train'), transform=transform, classes=CLASSES)
-val_dataset = SignalDataset(os.path.join(config.signals_path, 'val'), transform=transform, classes=CLASSES)
-test_dataset = SignalDataset(os.path.join(config.signals_path, 'test'), transform=transform, classes=CLASSES)
-
-generator1 = torch.Generator().manual_seed(42)
-generator2 = torch.Generator().manual_seed(42)
-generator3 = torch.Generator().manual_seed(42)
-
-train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
-test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
-
-for images, labels in train_loader:
-    print(images.shape)
-    image = images[0][0]
-    print(image.shape)
-    plt.imshow(image, cmap='inferno')
-    plt.show()
-    break
+augmenter.augment()

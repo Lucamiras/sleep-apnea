@@ -565,72 +565,87 @@ class Augmenter:
     def _generate_ambient_samples(self):
         assert len(os.listdir(self.config.ambient_noise_path)) != 0, "No ambient files found"
         assert 'wav' in [filename.split('.')[-1] for filename in os.listdir(self.config.ambient_noise_path)], "No wav files found"
-
+        print("Generating samples ...")
         ambient_wav_files = [filename for filename in os.listdir(self.config.ambient_noise_path)
                              if filename.split('.')[-1] == 'wav']
 
         ambient_clips = []
         ambient_clip_length = self.config.clip_length * self.config.sample_rate
+        counter = 0
 
         for ambient_file in ambient_wav_files:
             ambient_file_path = os.path.join(self.config.ambient_noise_path, ambient_file)
             noise_waveform, sr = torchaudio.load(ambient_file_path)
-            noise_waveform_resampled_mono = torchaudio.functional.resample(noise_waveform, self.config.sample_rate, sr)[0]
-            for i in range(0, noise_waveform_resampled_mono.shape[1], ambient_clip_length):
-                if i + ambient_clip_length < noise_waveform_resampled_mono.shape[1]:
-                    clip = noise_waveform_resampled_mono[i, i+ambient_clip_length]
-                    ambient_clips.append(torch.tensor(clip))
+            noise_waveform_resampled_mono = torchaudio.functional.resample(noise_waveform, self.config.sample_rate, sr)[0].reshape(-1, 1)
+            for i in range(0, noise_waveform_resampled_mono.shape[0], ambient_clip_length):
+                if i + ambient_clip_length < noise_waveform_resampled_mono.shape[0]:
+                    clip = noise_waveform_resampled_mono[i: i+ambient_clip_length]
+                    ambient_clips.append(clip)
+                    counter += 1
+        print(f"Finished generating {counter} samples.")
 
         return ambient_clips
 
     def _augment_with_ambient_clip(self, train_spectrogram):
         random_clip = np.random.choice(self.ambient_clips)
         snr_db = np.random.choice(range(self.snr_db_low, self.snr_db_high))
-        if not isinstance(train_spectrogram, torch.Tensor):
-            train_spectrogram = torch.tensor(train_spectrogram)
+        train_spectrogram = torch.tensor(train_spectrogram)
         noise_power = torch.mean(random_clip ** 2)
         signal_power = torch.mean(train_spectrogram ** 2)
         noise_scale = torch.sqrt(signal_power / (10 ** (10 / snr_db) * noise_power))
-        scaled_noise_spectrogram = random_clip * noise_scale
-        augmented_spectrogram = train_spectrogram + scaled_noise_spectrogram
+        scaled_noise_spectrogram = (random_clip * noise_scale).numpy().reshape(-1)
+        scaled_noise_spectrogram = librosa.feature.melspectrogram(
+            y=scaled_noise_spectrogram,
+            sr=self.config.sample_rate,
+            n_mels=self.config.n_mels)
+        augmented_spectrogram = train_spectrogram + torch.tensor(scaled_noise_spectrogram)
         augmented_spectrogram = augmented_spectrogram.numpy()
         return augmented_spectrogram
 
     def _augment_with_gaussian_noise(self, train_spectrogram):
-        if not isinstance(train_spectrogram, torch.Tensor):
-            train_spectrogram = torch.tensor(train_spectrogram)
-        noise = torch.randn_like(train_spectrogram) * 0.1 + 0
+        noise = torch.randn_like(torch.tensor(train_spectrogram)) * 0.1 + 0
         snr_db = np.random.choice(range(self.snr_db_low, self.snr_db_high))
-        augmented_spectrogram = train_spectrogram + noise * snr_db
-        augmented_spectrogram = augmented_spectrogram.numpy()
+        augmented_spectrogram = train_spectrogram + noise.numpy() * snr_db
+        augmented_spectrogram = augmented_spectrogram
         return augmented_spectrogram
 
     def augment(self):
-        with open(os.path.join(self.config.signals_path, 'train'), 'rb') as pickle_file:
+        print("Starting augmentation ...")
+        with open(os.path.join(self.config.signals_path, 'train', 'train.pickle'), 'rb') as pickle_file:
             train_data = pickle.load(pickle_file)
 
         num_samples = len(train_data)
         gaussian_samples = int(num_samples * self.augment_ratios['gaussian'])
         ambient_samples = int(num_samples * self.augment_ratios['ambient'])
 
-        random_specs_gaussian = np.random.choice(list(train_data.items()), gaussian_samples)
-        random_specs_ambient = np.random.choice(list(train_data.items()), ambient_samples)
+        random_indices_gaussian = np.random.randint(0, num_samples, gaussian_samples)
+        random_indices_ambient = np.random.randint(0, num_samples, ambient_samples)
 
-        augmented_specs = {}
+        random_specs_gaussian = [list(train_data.items())[i] for i in random_indices_gaussian]
+        random_specs_ambient = [list(train_data.items())[i] for i in random_indices_ambient]
 
-        for filename, train_sample in random_specs_gaussian:
-            augmented_spec = self._augment_with_gaussian_noise(train_sample)
-            pass
-            # continue here
-            # augment filename with "AUG"
-            # add to dictionary with key: filename, value: augmented_spec
+        counter = 0
 
-        for filename, train_sample in random_specs_ambient:
-            augmented_spec = self._augment_with_ambient_clip(train_sample)
-            pass
+        for filename, train_sample in tqdm(random_specs_gaussian):
+            augmented_spec = self._augment_with_gaussian_noise(train_sample[0])
+            filename_split = filename.split('_')
+            filename_split.insert(2, 'AUG')
+            filename = '_'.join(filename_split)
+            train_data[filename] = augmented_spec
+            counter += 1
 
-        return augmented_specs
+        for filename, train_sample in tqdm(random_specs_ambient):
+            augmented_spec = self._augment_with_ambient_clip(train_sample[0])
+            filename_split = filename.split('_')
+            filename_split.insert(2, 'AUG')
+            filename = '_'.join(filename_split)
+            train_data[filename] = augmented_spec
+            counter += 1
 
+        with open(os.path.join(self.config.signals_path, 'train', 'train.pickle'), 'wb') as pickle_file:
+            pickle.dump(train_data, pickle_file)
+
+        print(f"Finished augmentation. Generated {counter} augmented samples.")
 
 class DataPreprocessor:
     def __init__(self, downloader, extractor, processor, serializer, config):

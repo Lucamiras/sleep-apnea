@@ -11,14 +11,15 @@ from src.utils.imagedata import get_mean_and_std
 import matplotlib.pyplot as plt
 import torch.nn as nn
 import torch.nn.functional as f
+import h5py
+import json
 from src.preprocess import (
     Config,
     Downloader,
     Extractor,
     Processor,
     Serializer,
-    DataPreprocessor,
-    Augmenter
+    DataPreprocessor
 )
 from src.utils.globals import (
     CLASSES
@@ -28,7 +29,7 @@ from src.utils.globals import (
 config = Config(
     classes=CLASSES,
     download_files=False,
-    extract_signals=True,
+    extract_signals=False,
     process_signals=True,
     serialize_signals=True,
 )
@@ -49,9 +50,11 @@ pre = DataPreprocessor(
 
 #pre.run()
 
-augmenter = Augmenter({
-    "gaussian": 0.2,
-    "ambient": 0.2
-}, config)
+train = {}
+with h5py.File(os.path.join(config.signals_path, 'dataset.h5'), 'r') as hdf:
+    for key, item in hdf['Train'].items():
+        train[key] = item[()]
+print(train)
 
-augmenter.augment()
+
+

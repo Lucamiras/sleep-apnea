@@ -90,7 +90,6 @@ class Config:
 
         # Process signals
         self.process_signals = process_signals
-        self.audio_features = ['mel_spectrogram', 'mfcc']
         self.ids_to_process = None
 
         # Serialize signals
@@ -464,28 +463,16 @@ class Processor:
 
     def _get_audio_features(self, signal_array:list):
         y = np.array(signal_array)
-        audio_features = []
 
         # MEL SPECTROGRAM
-        if 'mel_spectrogram' in self.config.audio_features:
-            mel_spectrogram = librosa.feature.melspectrogram(
-                y=y,
-                sr=self.config.sample_rate,
-                n_mels=self.config.n_mels
-            )
-            mel_spectrogram = librosa.power_to_db(mel_spectrogram, ref=np.max)
-            audio_features.append(mel_spectrogram)
+        mel_spectrogram = librosa.feature.melspectrogram(
+            y=y,
+            sr=self.config.sample_rate,
+            n_mels=self.config.n_mels
+        )
+        mel_spectrogram = librosa.power_to_db(mel_spectrogram, ref=np.max)
 
-        # MFCC
-        if 'mfcc' in self.config.audio_features:
-            mfcc = librosa.feature.mfcc(
-                y=y,
-                sr=self.config.sample_rate,
-                n_mels=self.config.n_mels
-            )
-            audio_features.append(mfcc)
-
-        return tuple(audio_features)
+        return mel_spectrogram
 
     def _check_folder_contains_files(self):
         return len(os.listdir(self.config.npz_path)) > 0

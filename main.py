@@ -48,7 +48,8 @@ pre = DataPreprocessor(
     serializer,
     config)
 
-#pre.run()
+pre.run()
+
 transform = transforms.Compose([
     transforms.Resize((224,224)),
     transforms.ToTensor()
@@ -60,6 +61,3 @@ dataset = SignalDataset(
 )
 
 loader = DataLoader(dataset, batch_size=32, shuffle=True)
-for image, labels in loader:
-    print(image.shape)
-    print(labels)

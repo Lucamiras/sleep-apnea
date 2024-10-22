@@ -424,6 +424,10 @@ class Processor:
     A class responsible for processing extracted signal data and turning them into usable audio features such as
     spectrograms, mel spectrograms and MFCCs.
     """
+    train_signals = None
+    val_signals = None
+    test_signals = None
+
     def __init__(self, config):
         self.config = config
         self.signal_dictionary = {}
@@ -441,6 +445,7 @@ class Processor:
         print(patient_ids_to_process)
         for patient_id in patient_ids_to_process:
             self._create_all_spectrogram_files_as_arrays(patient_id)
+        self._shuffle_and_split()
 
     def _create_all_spectrogram_files_as_arrays(self, patient_id:str):
         npz_file = f"{patient_id}.npz"
@@ -474,11 +479,31 @@ class Processor:
     def _check_folder_contains_files(self):
         return len(os.listdir(self.config.npz_path)) > 0
 
+    def _shuffle_and_split(self) -> None:
+        # calculate train val test split indices
+        number_of_samples = len(self.signal_dictionary)
+        assert number_of_samples > 0, "No samples found."
+        train_index = int(np.round(number_of_samples * self.config.train_size))
+        val_index = int(np.round(number_of_samples) * (1 - self.config.train_size) / 2) + train_index
+
+        # load and shuffle signals
+        signal_data = list(self.signal_dictionary.items())
+        random.shuffle(signal_data)
+
+        # create datasets
+        train_signals = signal_data[:train_index]
+        val_signals = signal_data[train_index:val_index]
+        test_signals = signal_data[val_index:]
+
+        # return dictionaries
+        self.train_signals = {key: value for key, value in train_signals}
+        self.val_signals = {key: value for key, value in val_signals}
+        self.test_signals = {key:value for key, value in test_signals}
+
 class Serializer:
     """
     A class responsible for shuffling, splitting and serializing data.
     """
-    signal_dictionary = None
     train_signals = None
     val_signals = None
     test_signals = None
@@ -486,9 +511,10 @@ class Serializer:
     def __init__(self, config):
         self.config = config
 
-    def serialize(self, signal_dictionary):
-        self.signal_dictionary = signal_dictionary
-        self._shuffle_and_split()
+    def serialize(self, train_signals, val_signals, test_signals):
+        self.train_signals = train_signals
+        self.val_signals = val_signals
+        self.test_signals = test_signals
         self._save_dataset_as_hdf5()
 
     @staticmethod
@@ -511,27 +537,6 @@ class Serializer:
             self._save_dict_as_hdf5(train_group, self.train_signals)
             self._save_dict_as_hdf5(val_group, self.val_signals)
             self._save_dict_as_hdf5(test_group, self.test_signals)
-
-    def _shuffle_and_split(self) -> None:
-        # calculate train val test split indices
-        number_of_samples = len(self.signal_dictionary)
-        assert number_of_samples > 0, "No samples found."
-        train_index = int(np.round(number_of_samples * self.config.train_size))
-        val_index = int(np.round(number_of_samples) * (1 - self.config.train_size) / 2) + train_index
-
-        # load and shuffle signals
-        signal_data = list(self.signal_dictionary.items())
-        random.shuffle(signal_data)
-
-        # create datasets
-        train_signals = signal_data[:train_index]
-        val_signals = signal_data[train_index:val_index]
-        test_signals = signal_data[val_index:]
-
-        # return dictionaries
-        self.train_signals = {key: value for key, value in train_signals}
-        self.val_signals = {key: value for key, value in val_signals}
-        self.test_signals = {key:value for key, value in test_signals}
 
 class DataPreprocessor:
     def __init__(self, downloader, extractor, processor, serializer, config):
@@ -556,7 +561,9 @@ class DataPreprocessor:
 
         if self.config.serialize_signals:
             # This will take the processor signals and turn them into shuffled pickle files
-            self.serializer.serialize(self.processor.signal_dictionary)
+            self.serializer.serialize(self.processor.train_signals,
+                                      self.processor.val_signals,
+                                      self.processor.test_signals)
 
 def helper_reset_files(move_from: str = 'retired', move_to: str = 'downloads'):
     for folder_type in ['edf', 'rml']:

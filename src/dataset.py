@@ -5,6 +5,7 @@ from PIL import Image
 import os
 import pickle
 import numpy as np
+import h5py
 
 
 class SpectrogramDataset(Dataset):
@@ -46,13 +47,13 @@ class SpectrogramDataset(Dataset):
             return self.classes[file_name.split('.png')[0].split('_')[2]]
 
 class SignalDataset(Dataset):
-    def __init__(self, signal_dir, transform=None, classes:dict = None):
+    def __init__(self, dataset_filepath, transform=None, classes:dict = None):
         assert classes is not None, "No classes were selected. Not data will be loaded."
-        self.signal_dir = signal_dir
+        self.dataset_filepath = dataset_filepath
         self.transform = transform
         self.classes = classes
         self.class_names = [key for key, value in self.classes.items()]
-        self.signals = self._load_data_from_pickle()
+        self.signals = self._load_data_from_hdf5()
         self.num_classes = (len(set(classes.values())))
         self.patient_ids = set([patient_id.split('_')[1] for patient_id in self.signals.keys()])
 
@@ -60,38 +61,23 @@ class SignalDataset(Dataset):
         return len(self.signals)
 
     def __getitem__(self, idx):
-        # Load signal data and file name
         signal_filename, signal_data = list(self.signals.items())[idx]
-        # Process label
         signal_label = self._get_label_from_filename(signal_filename)
         one_hot_label = f.one_hot(torch.tensor(signal_label), num_classes=self.num_classes)
-        # Process features
-        resized_features = []
-        for feature in signal_data:
-            image = Image.fromarray(feature.astype(np.uint8))
-            resized_audio_feature = image.resize((224,224))
-            resized_audio_feature = np.array(resized_audio_feature)
-            resized_features.append(resized_audio_feature)
-        resized_features = np.stack(resized_features, axis=-1)
-
-        image = Image.fromarray(resized_features.astype(np.uint8))
+        signal_data = signal_data.squeeze().astype(np.uint8)
+        signal_data = Image.fromarray(signal_data)
         if self.transform:
-            image = self.transform(image)
-
-        return image, one_hot_label
+            signal_data = self.transform(signal_data)
+        return signal_data, one_hot_label
 
     def _get_label_from_filename(self, file_name):
         return self.classes[file_name.split('_')[2]]
 
-    def _load_data_from_pickle(self):
-        # load from pickle
-        pickle_files = os.listdir(self.signal_dir)
-        all_signals = {}
-        for file in pickle_files:
-            with open(os.path.join(self.signal_dir, file), 'rb') as content:
-                signals = pickle.load(content)
-                all_signals.update(signals)
-        signal_items = list(all_signals.items())
-        all_signals = {key: value for key, value in signal_items
+    def _load_data_from_hdf5(self):
+        dataset = {}
+        with h5py.File(self.dataset_filepath, 'r') as hdf:
+            for key, item in hdf['Train'].items():
+                dataset[key] = item[()]
+        all_signals = {key: value for key, value in dataset.items()
                        if key.split('_')[2] in self.class_names}
         return all_signals

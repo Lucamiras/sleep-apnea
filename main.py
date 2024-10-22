@@ -49,12 +49,17 @@ pre = DataPreprocessor(
     config)
 
 #pre.run()
+transform = transforms.Compose([
+    transforms.Resize((224,224)),
+    transforms.ToTensor()
+])
+dataset = SignalDataset(
+    'data/processed/signals/dataset.h5',
+    transform=transform,
+    classes=CLASSES
+)
 
-train = {}
-with h5py.File(os.path.join(config.signals_path, 'dataset.h5'), 'r') as hdf:
-    for key, item in hdf['Train'].items():
-        train[key] = item[()]
-print(train)
-
-
-
+loader = DataLoader(dataset, batch_size=32, shuffle=True)
+for image, labels in loader:
+    print(image.shape)
+    print(labels)

@@ -463,15 +463,12 @@ class Processor:
 
     def _get_audio_features(self, signal_array:list):
         y = np.array(signal_array)
-
-        # MEL SPECTROGRAM
         mel_spectrogram = librosa.feature.melspectrogram(
             y=y,
             sr=self.config.sample_rate,
             n_mels=self.config.n_mels
         )
         mel_spectrogram = librosa.power_to_db(mel_spectrogram, ref=np.max)
-
         return mel_spectrogram
 
     def _check_folder_contains_files(self):

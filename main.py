@@ -29,12 +29,13 @@ from src.utils.globals import (
 config = Config(
     classes=CLASSES,
     download_files=False,
-    extract_signals=True,
+    extract_signals=False,
     process_signals=True,
     serialize_signals=True,
 )
 config.ids_to_process = ['00001006']
 config.audio_features = ['mel_spectrogram']
+config.augment_ratio = 0.5
 downloader = Downloader(config)
 extractor = Extractor(config)
 processor = Processor(config)
@@ -48,18 +49,4 @@ pre = DataPreprocessor(
     serializer,
     config)
 
-# pre.run()
-
-transform = transforms.Compose([
-    transforms.Resize((224,224)),
-    transforms.ToTensor()
-])
-
-dataset = SignalDataset(
-    'data/processed/signals/dataset.h5',
-    dataset='Test',
-    transform=transform,
-    classes=CLASSES
-)
-
-print(len(dataset))
+pre.run()

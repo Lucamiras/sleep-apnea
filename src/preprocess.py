@@ -14,6 +14,8 @@ import pyedflib
 import pydub
 import re
 import pickle
+from scipy.io import wavfile
+from scipy.signal import resample
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -92,6 +94,7 @@ class Config:
         # Process signals
         self.process_signals = process_signals
         self.ids_to_process = None
+        self.augment_ratio = None
 
         # Serialize signals
         self.serialize_signals = serialize_signals
@@ -425,35 +428,73 @@ class Processor:
     A class responsible for processing extracted signal data and turning them into usable audio features such as
     spectrograms, mel spectrograms and MFCCs.
     """
+    signal_dictionary = {}
+    augment_chunks = []
     train_signals = None
     val_signals = None
     test_signals = None
 
-    def __init__(self, config):
+    def __init__(self, config:Config, augment_ratio:float=None):
         self.config = config
-        self.signal_dictionary = {}
 
     def process(self):
         print("PROCESSOR -- Starting processing")
+
         # Check if npz files exist
         if not self._check_folder_contains_files():
             raise Exception("No NPZ files to process.")
 
+        # Select patient IDs to process according to Config.ids_to_process
         patient_ids_to_process = self.config.ids_to_process if self.config.ids_to_process is not None \
             else [npz_filename.split('.npz')[0] for npz_filename in os.listdir(self.config.npz_path)]
 
+         # Check if augmentation should apply
+        augment = True if isinstance(self.config.augment_ratio, float) else False
+        if augment:
+            self._load_and_chunk_ambient_wav_files()
+
         print("PROCESSOR -- Building audio features for the following IDs:")
         print(patient_ids_to_process)
+
+        # Create spectrograms
         for patient_id in patient_ids_to_process:
-            self._create_all_spectrogram_files_as_arrays(patient_id)
+            self._load_signals_for_patient_id(patient_id)
+
+        # Shuffle and split into train, val and test
         self._shuffle_and_split()
 
-    def _create_all_spectrogram_files_as_arrays(self, patient_id:str):
+        # Create spectrograms
+        self._transform_signals_into_features(augment=augment)
+
+    def _augment(self, data, label):
+        overlay_data_index = int(np.random.choice(len(self.augment_chunks), 1))
+        overlay_data = self.augment_chunks[overlay_data_index]
+        overlay_amplitude = np.random.choice(range(1, 8)) / 10
+        augmented_data = self.overlay_sound(data, overlay_data, overlay_amplitude)
+        label_split = label.split('_')
+        label_split.insert(1, 'AUG')
+        augmented_label = '_'.join(label_split)
+        return augmented_data, augmented_label
+
+    def _load_signals_for_patient_id(self, patient_id:str):
         npz_file = f"{patient_id}.npz"
         data = self._load_segments_from_npz(npz_file=npz_file)
-        for index, arr in tqdm(enumerate(data)):
+        for index, arr in tqdm(enumerate(data), desc=f"Extracting signals for patient {patient_id}"):
             spec_file_name = f"{index:05d}_{patient_id}_{arr[0]}"
-            self.signal_dictionary[spec_file_name] = self._get_audio_features(arr[1])
+            self.signal_dictionary[spec_file_name] = arr[1]
+
+    def _transform_signals_into_features(self, augment:bool=False):
+        for signal_dict, desc in zip([self.train_signals, self.val_signals, self.test_signals], ['Train', 'Val', 'Test']):
+            for signal in tqdm(list(signal_dict.items()), desc=f"Generating features for {desc} signals ..."):
+                label, data = signal
+                signal_dict[label] = self._get_audio_features(data)
+                if not augment:
+                    continue
+                if signal_dict is not self.train_signals:
+                    continue
+                if np.random.choice(10) / 10 < self.config.augment_ratio:
+                    augmented_data, augmented_label = self._augment(data, label)
+                    signal_dict[augmented_label] = self._get_audio_features(augmented_data)
 
     def _load_segments_from_npz(self, npz_file) -> list:
         """
@@ -500,6 +541,29 @@ class Processor:
         self.train_signals = {key: value for key, value in train_signals}
         self.val_signals = {key: value for key, value in val_signals}
         self.test_signals = {key:value for key, value in test_signals}
+
+    def _load_and_chunk_ambient_wav_files(self):
+        ambient_files = os.listdir(self.config.ambient_noise_path)
+        clip_length = self.config.sample_rate * self.config.clip_length
+        step_size = self.config.sample_rate * 20
+
+        for ambient_file in tqdm(ambient_files, desc="PROCESSOR -- Creating ambient chunks for data augmentation"):
+            file_path = os.path.join(self.config.ambient_noise_path, ambient_file)
+            sample_rate, audio_data = wavfile.read(file_path)
+            if sample_rate != self.config.sample_rate:
+                audio_data = resample(audio_data, clip_length)
+            audio_data = audio_data.mean(axis=1)
+            audio_data = audio_data.astype(np.float32) / np.max(np.abs(audio_data))
+            audio_data = audio_data.reshape(-1,)
+            sliced_clips = [audio_data[i:i+clip_length] for i in range(0,len(audio_data),step_size)
+                            if len(audio_data[i:i+clip_length]) == clip_length]
+            self.augment_chunks.extend(sliced_clips)
+
+    @staticmethod
+    def overlay_sound(original_data, overlay_data, overlay_amplitude=0.5):
+        augmented_data = original_data + (overlay_amplitude * overlay_data)
+        augmented_data = np.clip(augmented_data, -1.0, 1.0)
+        return augmented_data
 
 class Serializer:
     """

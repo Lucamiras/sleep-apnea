@@ -47,9 +47,11 @@ class SpectrogramDataset(Dataset):
             return self.classes[file_name.split('.png')[0].split('_')[2]]
 
 class SignalDataset(Dataset):
-    def __init__(self, dataset_filepath, transform=None, classes:dict = None):
+    def __init__(self, dataset_filepath, dataset:str='Train', transform=None, classes:dict = None):
         assert classes is not None, "No classes were selected. Not data will be loaded."
+        assert dataset in ['Train','Val','Test'], "Dataset must be Train, Val, or Test."
         self.dataset_filepath = dataset_filepath
+        self.dataset = dataset
         self.transform = transform
         self.classes = classes
         self.class_names = [key for key, value in self.classes.items()]
@@ -76,7 +78,7 @@ class SignalDataset(Dataset):
     def _load_data_from_hdf5(self):
         dataset = {}
         with h5py.File(self.dataset_filepath, 'r') as hdf:
-            for key, item in hdf['Train'].items():
+            for key, item in hdf[self.dataset].items():
                 dataset[key] = item[()]
         all_signals = {key: value for key, value in dataset.items()
                        if key.split('_')[2] in self.class_names}

@@ -29,7 +29,7 @@ from src.utils.globals import (
 config = Config(
     classes=CLASSES,
     download_files=False,
-    extract_signals=False,
+    extract_signals=True,
     process_signals=True,
     serialize_signals=True,
 )
@@ -48,16 +48,18 @@ pre = DataPreprocessor(
     serializer,
     config)
 
-pre.run()
+# pre.run()
 
 transform = transforms.Compose([
     transforms.Resize((224,224)),
     transforms.ToTensor()
 ])
+
 dataset = SignalDataset(
     'data/processed/signals/dataset.h5',
+    dataset='Test',
     transform=transform,
     classes=CLASSES
 )
 
-loader = DataLoader(dataset, batch_size=32, shuffle=True)
+print(len(dataset))

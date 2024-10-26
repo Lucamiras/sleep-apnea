@@ -11,6 +11,7 @@ import gc
 import random
 import logging
 import pyedflib
+import pydub
 import re
 import pickle
 
@@ -502,7 +503,7 @@ class Processor:
 
 class Serializer:
     """
-    A class responsible for shuffling, splitting and serializing data.
+    A class responsible for serializing data.
     """
     train_signals = None
     val_signals = None

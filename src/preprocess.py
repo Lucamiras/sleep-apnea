@@ -481,7 +481,7 @@ class Processor:
     def _load_signals_for_patient_id(self, patient_id:str):
         npz_file = f"{patient_id}.npz"
         data = self._load_segments_from_npz(npz_file=npz_file)
-        for index, arr in tqdm(enumerate(data), desc=f"Extracting signals for patient {patient_id}"):
+        for index, arr in enumerate(tqdm(data, desc=f"Extracting signals for patient {patient_id}")):
             spec_file_name = f"{index:05d}_{patient_id}_{arr[0]}"
             self.signal_dictionary[spec_file_name] = arr[1]
 

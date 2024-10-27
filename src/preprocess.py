@@ -484,7 +484,8 @@ class Processor:
         data = self._load_segments_from_npz(npz_file=npz_file)
         for index, arr in enumerate(tqdm(data, desc=f"Extracting signals for patient {patient_id}")):
             spec_file_name = f"{index:05d}_{patient_id}_{arr[0]}"
-            self.signal_dictionary[spec_file_name] = arr[1]
+            if arr[1].shape[0] == self.config.clip_length * self.config.sample_rate:
+                self.signal_dictionary[spec_file_name] = arr[1]
 
     def _transform_signals_into_features(self, augment:bool=False):
         for signal_dict, desc in zip([self.train_signals, self.val_signals, self.test_signals], ['Train', 'Val', 'Test']):

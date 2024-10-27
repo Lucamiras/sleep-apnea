@@ -586,7 +586,7 @@ class Serializer:
 
     @staticmethod
     def _save_dict_as_hdf5(group, dictionary):
-        for key, value in dictionary.items():
+        for key, value in tqdm(dictionary.items(), desc="Saving as hdf5 ..."):
             group.create_dataset(
                 key,
                 data=value,

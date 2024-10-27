@@ -37,7 +37,7 @@ config = Config(
     download_files=False,
     extract_signals=False,
     process_signals=True,
-    serialize_signals=False,
+    serialize_signals=True,
     overrides=overrides,
 )
 downloader = Downloader(config)

@@ -20,22 +20,23 @@ from src.preprocess import (
     Extractor,
     Processor,
     Serializer,
-    DataPreprocessor
+    DataPreprocessor,
 )
 from src.utils.globals import (
     CLASSES
 )
 
 # Initialize pipeline elements
+
 overrides = {
-    "ids_to_process":['00001006'],
-    "augment_ratio":0.5
+    "ids_to_process":['00000995'],
+    "augment_ratio":0.5,
 }
 
 config = Config(
     classes=CLASSES,
     download_files=False,
-    extract_signals=False,
+    extract_signals=True,
     process_signals=True,
     serialize_signals=True,
     overrides=overrides,

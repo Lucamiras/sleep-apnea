@@ -95,6 +95,7 @@ class Config:
 
         # Serialize signals
         self.serialize_signals = serialize_signals
+        self.hdf5_file_name = 'dataset.h5'
         self.train_size = 0.8
 
         # Paths
@@ -595,15 +596,19 @@ class Serializer:
             )
 
     def _save_dataset_as_hdf5(self):
-        save_path = os.path.join(self.config.signals_path, 'dataset.h5')
-        with h5py.File(save_path, 'w') as hdf:
-            train_group = hdf.create_group('Train')
-            val_group = hdf.create_group('Val')
-            test_group = hdf.create_group('Test')
+        mode = 'w' if self.config.hdf5_file_name not in os.listdir(self.config.signals_path) else 'a'
+        save_path = os.path.join(self.config.signals_path, self.config.hdf5_file_name)
 
-            self._save_dict_as_hdf5(train_group, self.train_signals)
-            self._save_dict_as_hdf5(val_group, self.val_signals)
-            self._save_dict_as_hdf5(test_group, self.test_signals)
+        with h5py.File(save_path, mode) as hdf:
+            for group, signal_data in zip(['Train', 'Val', 'Test'],
+                                          [self.train_signals, self.val_signals, self.test_signals]):
+                if mode == 'w':
+                    hdf_group = hdf.create_group(group)
+                    self._save_dict_as_hdf5(hdf_group, signal_data)
+
+                if mode == 'a':
+                    for key, value in signal_data.items():
+                        hdf[group][key] = value
 
 class DataPreprocessor:
     def __init__(self, downloader, extractor, processor, serializer, config):

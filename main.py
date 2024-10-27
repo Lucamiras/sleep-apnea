@@ -1,6 +1,7 @@
 import os
 import numpy as np
 from torchvision import transforms
+from PIL import Image
 from typing_extensions import override
 from torch import optim
 import torch
@@ -26,16 +27,19 @@ from src.utils.globals import (
 )
 
 # Initialize pipeline elements
+overrides = {
+    "ids_to_process":['00001006'],
+    "augment_ratio":0.5
+}
+
 config = Config(
     classes=CLASSES,
     download_files=False,
     extract_signals=False,
     process_signals=True,
-    serialize_signals=True,
+    serialize_signals=False,
+    overrides=overrides,
 )
-config.ids_to_process = ['00001006']
-config.audio_features = ['mel_spectrogram']
-config.augment_ratio = 0.5
 downloader = Downloader(config)
 extractor = Extractor(config)
 processor = Processor(config)

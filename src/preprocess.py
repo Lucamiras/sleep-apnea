@@ -4,6 +4,7 @@ import h5py
 import requests
 import xml.dom.minidom
 import numpy as np
+from scipy.io.wavfile import WavFileWarning
 from tqdm import tqdm
 import librosa
 import librosa.feature
@@ -69,10 +70,6 @@ class Config:
                  serialize_signals: bool = True,
                  overrides: dict = None):
 
-        if overrides:
-            for key, value in overrides.items():
-                setattr(self, key, value)
-
         # Basic inputs
         self.project_dir = project_dir
         self.classes = classes
@@ -111,6 +108,11 @@ class Config:
         self.spectrogram_path = os.path.join(self.project_dir, 'processed', 'spectrogram')
         self.signals_path = os.path.join(self.project_dir, 'processed', 'signals')
         self.retired_path = os.path.join(self.project_dir, 'retired')
+
+        if overrides:
+            for key, value in overrides.items():
+                setattr(self, key, value)
+
         self._create_directory_structure()
 
     def _create_directory_structure(self) -> None:

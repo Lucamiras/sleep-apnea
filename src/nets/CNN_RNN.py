@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 import torch.nn.functional as f
 
@@ -25,9 +26,27 @@ class CNN(nn.Module):
         x = self.conv3(x)
         x = f.relu(x)
         x = self.pool(x)
-        x = self.dropout(x)
-        x = x.view(-1, 128 * int(self.input_size / 2 / 2 / 2) * int(self.input_size / 2 / 2 / 2))  # Flatten
-        x = self.fc1(x)
-        x = f.relu(x)
-        x = self.fc2(x)
         return x
+
+class CNNtoRNN(nn.Module):
+    def __init__(self, cnn_output_size, hidden_size, num_classes, slice_width=28, stride=10):
+        super(CNNtoRNN, self).__init__()
+
+        # CNN
+        self.cnn = CNN()
+        self.rnn = nn.LSTM(cnn_output_size, hidden_size, batch_first=True)
+        self.fc = nn.Linear(hidden_size, num_classes)
+        self.slice_width = slice_width
+        self.stride = stride
+
+    def forward(self, x):
+        batch_size, channels, height, width = x.size()
+        cnn_features = []
+        for t in range(0, width, self.slice_width):
+            x_slice = x[:, :, :, t:t+28]
+            cnn_out = self.cnn(x_slice)
+            cnn_out = cnn_out.view(batch_size, -1)
+        cnn_features = torch.stack(cnn_features, dim=1)
+        rnn_out, (hn, _) = self.rnn(cnn_features)
+        out = self.fc(hn[-1])
+        return out

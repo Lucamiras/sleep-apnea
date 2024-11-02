@@ -81,5 +81,5 @@ class SignalDataset(Dataset):
             for key, item in hdf[self.dataset].items():
                 dataset[key] = item[()]
         all_signals = {key: value for key, value in dataset.items()
-                       if key.split('_')[2] in self.class_names}
+                       if key.split('_')[-1] in self.class_names}
         return all_signals

@@ -33,7 +33,7 @@ class CNNtoRNN(nn.Module):
         super(CNNtoRNN, self).__init__()
 
         # CNN
-        self.cnn = CNN()
+        self.cnn = CNN(num_classes)
         self.rnn = nn.LSTM(cnn_output_size, hidden_size, batch_first=True)
         self.fc = nn.Linear(hidden_size, num_classes)
         self.slice_width = slice_width

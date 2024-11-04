@@ -29,10 +29,8 @@ class CNN(nn.Module):
         return x
 
 class CNNtoRNN(nn.Module):
-    def __init__(self, cnn_output_size, hidden_size, num_classes, slice_width=28, stride=10):
+    def __init__(self, cnn_output_size, hidden_size, num_classes, slice_width=16, stride=10):
         super(CNNtoRNN, self).__init__()
-
-        # CNN
         self.cnn = CNN(num_classes)
         self.rnn = nn.LSTM(cnn_output_size, hidden_size, batch_first=True)
         self.fc = nn.Linear(hidden_size, num_classes)
@@ -40,12 +38,14 @@ class CNNtoRNN(nn.Module):
         self.stride = stride
 
     def forward(self, x):
+        #import pdb; pdb.set_trace()
         batch_size, channels, height, width = x.size()
         cnn_features = []
         for t in range(0, width, self.slice_width):
             x_slice = x[:, :, :, t:t+28]
             cnn_out = self.cnn(x_slice)
             cnn_out = cnn_out.view(batch_size, -1)
+            cnn_features.append(cnn_out)
         cnn_features = torch.stack(cnn_features, dim=1)
         rnn_out, (hn, _) = self.rnn(cnn_features)
         out = self.fc(hn[-1])

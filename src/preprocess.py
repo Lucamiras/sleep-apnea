@@ -85,6 +85,7 @@ class Config:
         self.data_channels = 'Mic'
         self.edf_step_size = 10_000_000
         self.sample_rate = 48_000
+        self.new_sample_rate = None
         self.clip_length = 30
         self.n_mels = 128
 
@@ -114,7 +115,14 @@ class Config:
             for key, value in overrides.items():
                 setattr(self, key, value)
 
+        self._catch_errors()
         self._create_directory_structure()
+
+    def _catch_errors(self) -> None:
+        if self.new_sample_rate:
+            if not isinstance(self.new_sample_rate, int):
+                raise TypeError("new_sample_rate must be of type Integer")
+            assert self.new_sample_rate < self.sample_rate, "new_sample_rate must be smaller than sample_rate"
 
     def _create_directory_structure(self) -> None:
         """
@@ -299,6 +307,8 @@ class Extractor:
         :return:
         """
         clip_length_seconds = self.config.clip_length
+        sample_rate = min(self.config.sample_rate, self.config.new_sample_rate) \
+            if self.config.new_sample_rate else self.config.sample_rate
 
         print(f"Starting to create segments for patient {edf_folder}")
         edf_folder_path = os.path.join(self.config.edf_preprocess_path, edf_folder)
@@ -308,8 +318,8 @@ class Extractor:
         for label in self.label_dictionary[edf_folder]:
             label_desc = label[0]
             time_stamp = label[1]
-            start_idx = int(time_stamp * self.config.sample_rate)
-            end_idx = int((time_stamp + clip_length_seconds) * self.config.sample_rate)
+            start_idx = int(time_stamp * sample_rate)
+            end_idx = int((time_stamp + clip_length_seconds) * sample_rate)
             segment = edf_readout[start_idx:end_idx]
             if len(segment) > 0:
                 if self._no_change(segment):
@@ -319,6 +329,11 @@ class Extractor:
 
         del edf_readout, segment
         gc.collect()
+
+    def _downsample(self, edf_readout:np.array):
+        length = int(len(edf_readout) / self.config.sample_rate * self.config.new_sample_rate)
+        edf_readout = resample(edf_readout, length)
+        return edf_readout
 
     def _read_out_single_edf_file(self, edf_folder: str) -> np.array:
         """
@@ -347,6 +362,9 @@ class Extractor:
             full_readout = np.append(full_readout, sound_data)
             print(len(full_readout)/self.config.sample_rate)
             del f, sound_data
+
+        if self.config.new_sample_rate:
+            full_readout = self._downsample(full_readout)
 
         return full_readout
 
@@ -439,6 +457,7 @@ class Processor:
 
     def __init__(self, config:Config, augment_ratio:float=None):
         self.config = config
+        self.sample_rate = self.config.new_sample_rate if self.config.new_sample_rate else self.config.sample_rate
 
     def process(self):
         print("PROCESSOR -- Starting processing")
@@ -484,7 +503,7 @@ class Processor:
         data = self._load_segments_from_npz(npz_file=npz_file)
         for index, arr in enumerate(tqdm(data, desc=f"Extracting signals for patient {patient_id}")):
             spec_file_name = f"{index:05d}_{patient_id}_{arr[0]}"
-            if arr[1].shape[0] == self.config.clip_length * self.config.sample_rate:
+            if arr[1].shape[0] == self.config.clip_length * self.sample_rate:
                 self.signal_dictionary[spec_file_name] = arr[1]
 
     def _transform_signals_into_features(self, augment:bool=False):
@@ -516,7 +535,7 @@ class Processor:
         y = np.array(signal_array)
         mel_spectrogram = librosa.feature.melspectrogram(
             y=y,
-            sr=self.config.sample_rate,
+            sr=self.sample_rate,
             n_mels=self.config.n_mels
         )
         mel_spectrogram = librosa.power_to_db(mel_spectrogram, ref=np.max)

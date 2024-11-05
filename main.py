@@ -32,16 +32,16 @@ from src.utils.globals import (
 # Initialize pipeline elements
 
 overrides = {
-    "ids_to_process":['00000995'],
-    "augment_ratio":0.5,
+    "ids_to_process":['00000995','00001006'],
+    "new_sample_rate": 16_000
 }
 
 config = Config(
     classes=CLASSES,
     download_files=False,
     extract_signals=True,
-    process_signals=False,
-    serialize_signals=False,
+    process_signals=True,
+    serialize_signals=True,
     overrides=overrides,
 )
 downloader = Downloader(config)
@@ -57,3 +57,4 @@ pre = DataPreprocessor(
     serializer,
     config)
 
+pre.run()

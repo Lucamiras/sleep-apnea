@@ -361,7 +361,9 @@ class Extractor:
                 raise ValueError(f"Channel '{self.config.data_channels}' not found in EDF file")
             full_readout = np.append(full_readout, sound_data)
             print(len(full_readout)/self.config.sample_rate)
-            del f, sound_data
+            del f, n, sound_data
+
+        full_readout = full_readout.astype(np.float16)
 
         if self.config.new_sample_rate:
             full_readout = self._downsample(full_readout)

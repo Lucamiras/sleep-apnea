@@ -569,7 +569,9 @@ class Processor:
 
     def _load_and_chunk_ambient_wav_files(self):
         ambient_files = os.listdir(self.config.ambient_noise_path)
-        clip_length = self.config.sample_rate * self.config.clip_length
+        clip_length = (self.config.new_sample_rate
+                       if self.config.new_sample_rate
+                       else self.config.sample_rate) * self.config.clip_length
         step_size = self.config.sample_rate * 20
 
         for ambient_file in tqdm(ambient_files, desc="PROCESSOR -- Creating ambient chunks for data augmentation"):

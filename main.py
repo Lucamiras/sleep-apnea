@@ -1,22 +1,10 @@
-import os
 import numpy as np
-from torchvision import transforms
-import librosa
 from PIL import Image
-from typing_extensions import override
-from torch import optim
-import torch
-from src.nets.train_eval_loop import train_epoch, eval_model
-from src.nets.basicCNN import CNN
-from src.dataset import SignalDataset
-import soundfile as sf
-from torch.utils.data import DataLoader
-from src.utils.imagedata import get_mean_and_std
+
 import matplotlib.pyplot as plt
-import torch.nn as nn
-import torch.nn.functional as f
 import h5py
-import json
+from torch.utils.data import DataLoader
+from torchvision import transforms
 from src.preprocess import (
     Config,
     Downloader,
@@ -28,6 +16,7 @@ from src.preprocess import (
 from src.utils.globals import (
     CLASSES
 )
+from src.dataset import SignalDataset
 
 # Initialize pipeline elements
 
@@ -59,5 +48,15 @@ pre = DataPreprocessor(
     serializer,
     config)
 
-pre.run()
-print(len(serializer.train_signals))
+#pre.run()
+transform = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Resize((224,224)),
+])
+dataset = SignalDataset('data/processed/signals/dataset.h5', 'Train', transform=transform, classes=CLASSES)
+dataloader = DataLoader(dataset, batch_size=len(dataset), shuffle=True)
+
+img, label = next(iter(dataloader))
+
+plt.imshow(img.squeeze()[500])
+plt.show()

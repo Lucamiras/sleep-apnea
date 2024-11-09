@@ -4,6 +4,7 @@ import h5py
 import requests
 import xml.dom.minidom
 import numpy as np
+from oauthlib.uri_validate import segment
 from scipy.io.wavfile import WavFileWarning
 from tqdm import tqdm
 import librosa
@@ -398,7 +399,7 @@ class Extractor:
                 event_type = timestamp[2]
                 if start > segment_end:
                     break
-                if self._overlaps(segment_start, segment_end, start, end):
+                if self._simple_detect(segment_start, segment_end, start, end):
                     label = event_type
                     break
             new_entry = (str(label),
@@ -428,6 +429,16 @@ class Extractor:
         :return: True / False"""
         mid = (label_start + label_end) / 2
         return segment_start < mid < segment_end
+
+    @staticmethod
+    def _simple_detect(segment_start, segment_end, label_start, label_end) -> bool:
+        """This function checks if any apnea is present at all in the segment.
+        returns True or False"""
+        return (
+                ((segment_start <= label_start < segment_end) or (segment_start < label_end <= segment_end))
+                or
+                ((label_start < segment_start) and (label_end > segment_end))
+        )
 
     @staticmethod
     def _no_change(array):
@@ -572,7 +583,9 @@ class Processor:
         clip_length = (self.config.new_sample_rate
                        if self.config.new_sample_rate
                        else self.config.sample_rate) * self.config.clip_length
-        step_size = self.config.sample_rate * 20
+        step_size = (self.config.new_sample_rate
+                       if self.config.new_sample_rate
+                       else self.config.sample_rate) * 20
 
         for ambient_file in tqdm(ambient_files, desc="PROCESSOR -- Creating ambient chunks for data augmentation"):
             file_path = os.path.join(self.config.ambient_noise_path, ambient_file)
@@ -580,7 +593,7 @@ class Processor:
             if sample_rate != self.config.sample_rate:
                 audio_data = resample(audio_data, clip_length)
             audio_data = audio_data.mean(axis=1)
-            audio_data = audio_data.astype(np.float32) / np.max(np.abs(audio_data))
+            audio_data = audio_data.astype(np.float16) / np.max(np.abs(audio_data))
             audio_data = audio_data.reshape(-1,)
             sliced_clips = [audio_data[i:i+clip_length] for i in range(0,len(audio_data),step_size)
                             if len(audio_data[i:i+clip_length]) == clip_length]

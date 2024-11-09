@@ -33,7 +33,9 @@ from src.utils.globals import (
 
 overrides = {
     "ids_to_process":['00000995','00001006'],
-    "new_sample_rate": 16_000
+    "clip_length":5,
+    "new_sample_rate": 16_000,
+    "augment_ratio":0.2
 }
 
 config = Config(
@@ -58,3 +60,4 @@ pre = DataPreprocessor(
     config)
 
 pre.run()
+print(len(serializer.train_signals))

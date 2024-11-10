@@ -21,7 +21,7 @@ from src.dataset import SignalDataset
 # Initialize pipeline elements
 
 overrides = {
-    "ids_to_process":['00000995','00001006'],
+    "ids_to_process":['00000995'],
     "clip_length":5,
     "new_sample_rate": 16_000,
     "augment_ratio":0.2
@@ -49,6 +49,7 @@ pre = DataPreprocessor(
     config)
 
 #pre.run()
+
 transform = transforms.Compose([
     transforms.ToTensor(),
     transforms.Resize((224,224)),
@@ -56,7 +57,13 @@ transform = transforms.Compose([
 dataset = SignalDataset('data/processed/signals/dataset.h5', 'Train', transform=transform, classes=CLASSES)
 dataloader = DataLoader(dataset, batch_size=len(dataset), shuffle=True)
 
-img, label = next(iter(dataloader))
-
-plt.imshow(img.squeeze()[500])
-plt.show()
+for images, labels in dataset:
+    num_features = images.shape[0]
+    if num_features == 1:
+        plt.imshow(images.permute(1,2,0))
+    else:
+        fig, ax = plt.subplots(1,num_features)
+        for f in range(num_features):
+            ax[f].imshow(images[f])
+    plt.show()
+    break

@@ -94,6 +94,7 @@ class Config:
         self.process_signals = process_signals
         self.ids_to_process = None
         self.augment_ratio = None
+        self.additional_audio_features = None
 
         # Serialize signals
         self.serialize_signals = serialize_signals
@@ -120,10 +121,16 @@ class Config:
         self._create_directory_structure()
 
     def _catch_errors(self) -> None:
+
         if self.new_sample_rate:
             if not isinstance(self.new_sample_rate, int):
                 raise TypeError("new_sample_rate must be of type Integer")
             assert self.new_sample_rate < self.sample_rate, "new_sample_rate must be smaller than sample_rate"
+
+        if self.additional_audio_features:
+            for feature in self.additional_audio_features:
+                if feature not in ['mfcc', 'chroma_vq']:
+                    raise Exception("Allowed values for additional_audio_features are 'mfcc' and 'chroma_vq'")
 
     def _create_directory_structure(self) -> None:
         """
@@ -546,13 +553,35 @@ class Processor:
 
     def _get_audio_features(self, signal_array:list):
         y = np.array(signal_array)
+        audio_features = []
         mel_spectrogram = librosa.feature.melspectrogram(
             y=y,
             sr=self.sample_rate,
             n_mels=self.config.n_mels
         )
         mel_spectrogram = librosa.power_to_db(mel_spectrogram, ref=np.max)
-        return mel_spectrogram
+        audio_features.append(mel_spectrogram)
+
+        if self.config.additional_audio_features:
+            if 'chroma_vq' in self.config.additional_audio_features:
+                chroma_vq = librosa.feature.chroma_vqt(y=y, sr=self.sample_rate, intervals='ji5')
+                chroma_vq = self.reshape_arrays(mel_spectrogram, chroma_vq)
+                audio_features.append(chroma_vq)
+
+            if 'mfcc' in self.config.additional_audio_features:
+                mfcc = librosa.feature.mfcc(y=y, sr=self.sample_rate)
+                mfcc = self.reshape_arrays(mel_spectrogram, mfcc)
+                audio_features.append(mfcc)
+
+        return np.stack(audio_features)
+
+    @staticmethod
+    def reshape_arrays(larger_array:np.array, smaller_array:np.array) -> np.array:
+        larger_array_len = np.multiply(*larger_array.shape)
+        smaller_array_len = np.multiply(*smaller_array.shape)
+        padding_array = np.full([larger_array_len - smaller_array_len], np.nan)
+        reshaped_array = np.concatenate([smaller_array.flatten(), padding_array]).reshape(larger_array.shape)
+        return reshaped_array
 
     def _check_folder_contains_files(self):
         return len(os.listdir(self.config.npz_path)) > 0

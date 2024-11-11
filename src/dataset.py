@@ -34,7 +34,6 @@ class SignalDataset(Dataset):
             data = np.where(np.isfinite(signal_data[i]), signal_data[i], 0)
             data = self._rescale_array(data)
             img = Image.fromarray(data.astype(np.uint8))
-            img = transform(img)
             img = torch.tensor(img)
             if self.resize is not None:
                 img = transforms.Resize(self.resize)(img)

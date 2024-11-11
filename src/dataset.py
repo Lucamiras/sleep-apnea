@@ -7,15 +7,16 @@ import numpy as np
 import h5py
 
 
+
 class SignalDataset(Dataset):
-    def __init__(self, dataset_filepath, dataset:str='Train', transform=None, classes:dict = None, resize_to:tuple=(224,224)):
+    def __init__(self, dataset_filepath:str, dataset:str, normalize:list|None=None, resize:tuple|None=None, classes:dict=None):
         assert classes is not None, "No classes were selected. Not data will be loaded."
         assert dataset in ['Train','Val','Test'], "Dataset must be Train, Val, or Test."
         self.dataset_filepath = dataset_filepath
         self.dataset = dataset
-        self.transform = transform
+        self.normalize = normalize
         self.classes = classes
-        self.resize_to = resize_to
+        self.resize = resize
         self.class_names = [key for key, value in self.classes.items()]
         self.signals = self._load_data_from_hdf5()
         self.num_classes = (len(set(classes.values())))
@@ -28,18 +29,21 @@ class SignalDataset(Dataset):
         signal_filename, signal_data = list(self.signals.items())[idx]
         signal_label = self._get_label_from_filename(signal_filename)
         one_hot_label = f.one_hot(torch.tensor(signal_label), num_classes=self.num_classes)
-        num_features = signal_data.shape[0]
-        feature_array = []
-        for i in range(num_features):
-            data = signal_data[i]
-            data = np.where(np.isfinite(data), data, 0)
+        audio_features = []
+        for i in range(signal_data.shape[0]):
+            data = np.where(np.isfinite(signal_data[i]), signal_data[i], 0)
             data = self._rescale_array(data)
-            data = Image.fromarray(data)
-            if self.transform:
-                data = self.transform(data)
-            feature_array.append(data.squeeze())
-        signal_data = torch.stack(feature_array)
-        return signal_data, one_hot_label
+            img = Image.fromarray(data.astype(np.uint8))
+            img = transform(img)
+            img = torch.tensor(img)
+            if self.resize is not None:
+                img = transforms.Resize(self.resize)(img)
+            audio_features.append(img.squeeze())
+        img = torch.stack(audio_features)
+        if self.normalize is not None:
+            mean, std = self.normalize
+            img = transforms.Normalize(mean[i], std[i])(img)
+        return img, one_hot_label
 
     def _get_label_from_filename(self, file_name):
         return self.classes[file_name.split('_')[-1]]

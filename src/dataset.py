@@ -7,7 +7,6 @@ import numpy as np
 import h5py
 
 
-
 class SignalDataset(Dataset):
     def __init__(self, dataset_filepath:str, dataset:str, normalize:list|None=None, resize:tuple|None=None, classes:dict=None):
         assert classes is not None, "No classes were selected. Not data will be loaded."
@@ -34,7 +33,7 @@ class SignalDataset(Dataset):
             data = np.where(np.isfinite(signal_data[i]), signal_data[i], 0)
             data = self._rescale_array(data)
             img = Image.fromarray(data.astype(np.uint8))
-            img = torch.tensor(img)
+            img = transforms.ToTensor()(img)
             if self.resize is not None:
                 img = transforms.Resize(self.resize)(img)
             audio_features.append(img.squeeze())
@@ -60,3 +59,4 @@ class SignalDataset(Dataset):
     def _rescale_array(x):
         x_min, x_max = np.min(x), np.max(x)
         return ((x - x_min) / (x_max - x_min) * 255).astype(np.uint8)
+        

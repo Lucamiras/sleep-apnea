@@ -4,8 +4,6 @@ import h5py
 import requests
 import xml.dom.minidom
 import numpy as np
-from oauthlib.uri_validate import segment
-from scipy.io.wavfile import WavFileWarning
 from tqdm import tqdm
 import librosa
 import librosa.feature
@@ -13,9 +11,7 @@ import gc
 import random
 import logging
 import pyedflib
-import pydub
 import re
-import pickle
 from scipy.io import wavfile
 from scipy.signal import resample
 

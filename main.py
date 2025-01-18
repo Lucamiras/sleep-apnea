@@ -22,7 +22,7 @@ from src.dataset import SignalDataset
 
 overrides = {
     "ids_to_process":['00000995'],
-    "clip_length":5,
+    "clip_length":30,
     "new_sample_rate": 16_000,
     "augment_ratio":0.2
 }
@@ -31,8 +31,8 @@ config = Config(
     classes=CLASSES,
     download_files=False,
     extract_signals=True,
-    process_signals=True,
-    serialize_signals=True,
+    process_signals=False,
+    serialize_signals=False,
     overrides=overrides,
 )
 downloader = Downloader(config)
@@ -48,7 +48,8 @@ pre = DataPreprocessor(
     serializer,
     config)
 
-#pre.run()
+pre.run()
+print(len(extractor.label_dictionary))
 
 transform = transforms.Compose([
     transforms.ToTensor(),

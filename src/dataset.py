@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import torch
 from torch.utils.data import Dataset
 from torchvision.transforms import transforms

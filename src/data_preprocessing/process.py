@@ -9,8 +9,8 @@ import librosa.feature
 import random
 from scipy.io import wavfile
 from scipy.signal import resample
-from src.dataclasses.spectrogram import Spectrogram, SpectrogramDataset
 from src.data_preprocessing.config import Config
+from src.dataclasses.spectrogram import Spectrogram, SpectrogramDataset
 
 
 class Processor:

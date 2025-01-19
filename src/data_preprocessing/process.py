@@ -56,7 +56,7 @@ class Processor:
         self._shuffle_and_split()
 
         # Create spectrograms
-        self._transform_signals_into_features(augment=augment)
+        self._build_dataset()
 
     def _load_or_create_dataset(self):
         dataset_present = self.config.dataset_file_name in os.listdir(self.config.signals_path)
@@ -65,8 +65,14 @@ class Processor:
                                                              self.config.dataset_file_name), "rb"))
             return existing_dataset
         if not dataset_present:
-            new_dataset = SpectrogramDataset(
-                clip_length=self.config.clip_length, data={"train":[], "val":[], "test":[]})
+            new_dataset = {
+                "clip_length": self.config.clip_length,
+                "dataset": {
+                    "train": [],
+                    "val": [],
+                    "test": []
+                }
+            }
             return new_dataset
 
     def _augment(self, data, label):
@@ -87,19 +93,6 @@ class Processor:
             if arr[1].shape[0] == self.config.clip_length * self.sample_rate:
                 self.signal_dictionary[spec_file_name] = arr[1]
 
-    def _transform_signals_into_features(self, augment:bool=False):
-        for signal_dict, desc in zip([self.train_signals, self.val_signals, self.test_signals], ['Train', 'Val', 'Test']):
-            for signal in tqdm(list(signal_dict.items()), desc=f"Generating features for {desc} signals ..."):
-                label, data = signal
-                signal_dict[label] = self._get_audio_features(data)
-                if not augment:
-                    continue
-                if signal_dict is not self.train_signals:
-                    continue
-                if np.random.choice(10) / 10 < self.config.augment_ratio:
-                    augmented_data, augmented_label = self._augment(data, label)
-                    signal_dict[augmented_label] = self._get_audio_features(augmented_data)
-
     def _build_dataset(self) -> None:
         for signal_dictionary, split in zip(
                 [self.train_signals, self.val_signals, self.test_signals],
@@ -107,13 +100,14 @@ class Processor:
             for sample in tqdm(list(signal_dictionary.items()), desc=f"Generating features for {split} signals ..."):
                 label, signal_data = sample
                 _, patient_id, classification = label.split('_')
-                signal_data = self._transform_signal_into_image(signal_data, self.config.image_size)
-                new_spectrogram = Spectrogram(
-                    label=classification,
-                    patient_id=patient_id,
-                    data=signal_data)
-                self.spectrogram_dataset.data.get(split.lower()).append(new_spectrogram)
-        return None
+                mel_spectrogram = self._get_audio_features(signal_data)
+                transformed_mel_spectrogram = self._transform_signal_into_image(mel_spectrogram, self.config.image_size)
+                spectrogram_datapoint = {
+                    "label":classification,
+                    "data":transformed_mel_spectrogram,
+                    "patient_id": patient_id
+                }
+                self.spectrogram_dataset.get('dataset').get(split.lower()).append(spectrogram_datapoint)
 
     @staticmethod
     def _transform_signal_into_image(signal_data:np.ndarray, size:tuple):

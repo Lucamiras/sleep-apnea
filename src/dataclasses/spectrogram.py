@@ -1,6 +1,13 @@
+import numpy as np
 from dataclasses import dataclass, field
 from typing import Dict, List
-from src.dataclass.spectrogram import Spectrogram
+
+
+@dataclass
+class Spectrogram:
+    label: str
+    patient_id: str
+    data: np.ndarray
 
 @dataclass(frozen=True)
 class SpectrogramDataset:

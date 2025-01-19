@@ -1,7 +1,6 @@
 import os
 import pickle
 import shutil
-from src.dataclasses.spectrogram import Spectrogram, SpectrogramDataset
 from src.data_preprocessing.config import Config
 
 
@@ -9,7 +8,7 @@ class Serializer:
     """
     A class responsible for serializing data.
     """
-    def __init__(self, config: Config, dataset: SpectrogramDataset):
+    def __init__(self, config: Config, dataset: dict):
         self.config = config
         self.dataset = dataset
 

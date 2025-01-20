@@ -5,6 +5,7 @@ import pyedflib
 import numpy as np
 import xml.dom.minidom
 from scipy.signal import resample
+from src.dataclasses.apnea_events import ApneaEvents, ApneaEvent
 
 
 class Extractor:
@@ -96,26 +97,22 @@ class Extractor:
         Load edf files and create segments by timestamps.
         :return:
         """
-        clip_length_seconds = self.config.clip_length
         sample_rate = min(self.config.sample_rate, self.config.new_sample_rate) \
             if self.config.new_sample_rate else self.config.sample_rate
 
         print(f"Starting to create segments for patient {edf_folder}")
         edf_folder_path = os.path.join(self.config.edf_preprocess_path, edf_folder)
         edf_readout = self._read_out_single_edf_file(edf_folder_path)
-        self.segments_dictionary[edf_folder] = []
 
-        for label in self.label_dictionary[edf_folder]:
-            label_desc = label[0]
-            time_stamp = label[1]
-            start_idx = int(time_stamp * sample_rate)
-            end_idx = int((time_stamp + clip_length_seconds) * sample_rate)
+        for apnea_event in self.label_dictionary[edf_folder].events:
+            start_idx = int(apnea_event.start * sample_rate)
+            end_idx = int(apnea_event.end * sample_rate)
             segment = edf_readout[start_idx:end_idx]
             if len(segment) > 0:
                 if self._no_change(segment):
                     break
                 else:
-                    self.segments_dictionary[edf_folder].append((label_desc, segment))
+                    apnea_event.signal = segment
 
         del edf_readout, segment
         gc.collect()
@@ -170,6 +167,7 @@ class Extractor:
         domtree = xml.dom.minidom.parse(label_path)
         group = domtree.documentElement
         events = group.getElementsByTagName('Event')
+        gender = group.getElementsByTagName('Gender')[0].firstChild.nodeValue
         last_event_timestamp = int(float(events[-1].getAttribute('Start')))
         segment_duration = self.config.clip_length
         events_timestamps = [
@@ -179,6 +177,9 @@ class Extractor:
             if event.getAttribute('Type') in self.config.classes.keys()
         ]
         all_events = []
+        apnea_events = ApneaEvents(acq_number=str(rml_folder),
+                                   gender=gender,
+                                   events=[])
         for segment_start in range(0, last_event_timestamp, segment_duration):
             segment_end = segment_start + segment_duration
             label = 'NoApnea'
@@ -194,23 +195,29 @@ class Extractor:
             new_entry = (str(label),
                          float(segment_start),
                          float(segment_duration))
+            event = ApneaEvent(start=float(segment_start),
+                               end=float(segment_end),
+                               label=str(label),
+                               signal=[])
             all_events.append(new_entry)
+            apnea_events.events.append(event)
         print(f"Found {len(all_events)} events and non-events for {rml_folder}.")
-        self.label_dictionary[rml_folder] = all_events
+        # self.label_dictionary[rml_folder] = all_events
+        self.label_dictionary[rml_folder] = apnea_events
 
     def _save_segments_as_npz(self, patient_id) -> None:
         """
         Goes through the segments dictionary and creates npz files to save to disk.
         :returns: None
         """
-        assert len(self.segments_dictionary) > 0, "No segments available to save."
+        assert len(self.label_dictionary) > 0, "No segments available to save."
 
-        data = self.segments_dictionary[patient_id]
-        npz_file_name = f"{patient_id}.npz"
-        save_path = os.path.join(self.config.npz_path, npz_file_name)
-        arrays = {f"array_{i}": array for i, (_, array) in enumerate(data)}
-        labels = np.array([label for label, _ in data])
-        np.savez(save_path, labels=labels, **arrays)
+        # data = self.segments_dictionary[patient_id]
+        # npz_file_name = f"{patient_id}.npz"
+        # save_path = os.path.join(self.config.npz_path, npz_file_name)
+        # arrays = {f"array_{i}": array for i, (_, array) in enumerate(data)}
+        # labels = np.array([label for label, _ in data])
+        # np.savez(save_path, labels=labels, **arrays)
 
     @staticmethod
     def _overlaps(segment_start, segment_end, label_start, label_end) -> bool:

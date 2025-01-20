@@ -19,8 +19,8 @@ config = Config(
     classes=CLASSES,
     download_files=False,
     extract_signals=True,
-    process_signals=True,
-    serialize_signals=True,
+    process_signals=False,
+    serialize_signals=False,
     overrides=overrides,
 )
 downloader = Downloader(config)

@@ -28,7 +28,7 @@ class Config:
         rml_download_path (str): Path in root folder.
         edf_preprocess_path (str): Path in root folder.
         rml_preprocess_path (str): Path in root folder.
-        npz_path (str): Path in root folder.
+        pickle_path (str): Path in root folder.
         audio_path (str): Path in root folder.
         spectrogram_path (str): Path in root folder.
         signals_path (str): Path in root folder.
@@ -84,7 +84,7 @@ class Config:
         self.ambient_noise_path = os.path.join(self.project_dir, 'downloads', 'ambient')
         self.edf_preprocess_path = os.path.join(self.project_dir, 'preprocess', 'edf')
         self.rml_preprocess_path = os.path.join(self.project_dir, 'preprocess', 'rml')
-        self.npz_path = os.path.join(self.project_dir, 'preprocess', 'npz')
+        self.pickle_path = os.path.join(self.project_dir, 'preprocess', 'pickle')
         self.audio_path = os.path.join(self.project_dir, 'processed', 'audio')
         self.spectrogram_path = os.path.join(self.project_dir, 'processed', 'spectrogram')
         self.signals_path = os.path.join(self.project_dir, 'processed', 'signals')
@@ -113,7 +113,7 @@ class Config:
         os.makedirs(self.rml_download_path, exist_ok=True)
         os.makedirs(self.edf_preprocess_path, exist_ok=True)
         os.makedirs(self.rml_preprocess_path, exist_ok=True)
-        os.makedirs(self.npz_path, exist_ok=True)
+        os.makedirs(self.pickle_path, exist_ok=True)
         os.makedirs(self.audio_path, exist_ok=True)
         os.makedirs(self.spectrogram_path, exist_ok=True)
         os.makedirs(self.signals_path, exist_ok=True)

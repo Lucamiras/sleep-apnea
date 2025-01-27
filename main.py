@@ -18,9 +18,9 @@ overrides = {
 config = Config(
     classes=CLASSES,
     download_files=False,
-    extract_signals=True,
-    process_signals=False,
-    serialize_signals=False,
+    extract_signals=False,
+    process_signals=True,
+    serialize_signals=True,
     overrides=overrides,
 )
 downloader = Downloader(config)

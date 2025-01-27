@@ -17,7 +17,7 @@ class Processor:
     A class responsible for processing extracted signal data and turning them into usable audio features such as
     spectrograms, mel spectrograms and MFCCs.
     """
-    signal_dictionary = {}
+    signal_list = []
     augment_chunks = []
     train_signals = None
     val_signals = None
@@ -37,7 +37,7 @@ class Processor:
 
         # Select patient IDs to process according to Config.ids_to_process
         patient_ids_to_process = self.config.ids_to_process if self.config.ids_to_process is not None \
-            else [npz_filename.split('.npz')[0] for npz_filename in os.listdir(self.config.npz_path)]
+            else [npz_filename.split('.npz')[0] for npz_filename in os.listdir(self.config.pickle_path)]
 
          # Check if augmentation should apply
         augment = True if isinstance(self.config.augment_ratio, float) else False
@@ -85,28 +85,29 @@ class Processor:
         return augmented_data, augmented_label
 
     def _load_signals_for_patient_id(self, patient_id:str):
-        npz_file = f"{patient_id}.npz"
-        data = self._load_segments_from_npz(npz_file=npz_file)
-        for index, arr in enumerate(tqdm(data, desc=f"Extracting signals for patient {patient_id}")):
-            spec_file_name = f"{index:05d}_{patient_id}_{arr[0]}"
-            if arr[1].shape[0] == self.config.clip_length * self.sample_rate:
-                self.signal_dictionary[spec_file_name] = arr[1]
+        pickle_file = f"{patient_id}.pickle"
+        data = self._load_segments_from_pickle(pickle_file=pickle_file)
+        for index, event in tqdm(enumerate(data['events']), desc=f"Extracting signals for patient {patient_id}"):
+            apnea_event = {
+                'index': index,
+                'acq_number': patient_id,
+                'start': event['start'],
+                'end': event['end'],
+                'label': event['label'],
+                'signal': event['signal']
+            }
+            if len(apnea_event['signal']) == self.config.clip_length * self.sample_rate:
+                self.signal_list.append(apnea_event)
 
     def _build_dataset(self) -> None:
-        for signal_dictionary, split in zip(
+        for signal_list, split in zip(
                 [self.train_signals, self.val_signals, self.test_signals],
                 ['Train', 'Val', 'Test']):
-            for sample in tqdm(list(signal_dictionary.items()), desc=f"Generating features for {split} signals ..."):
-                label, signal_data = sample
-                _, patient_id, classification = label.split('_')
-                mel_spectrogram = self._get_audio_features(signal_data)
+            for sample in tqdm(signal_list, desc=f"Generating features for {split} signals ..."):
+                mel_spectrogram = self._get_audio_features(sample['signal'])
                 transformed_mel_spectrogram = self._transform_signal_into_image(mel_spectrogram, self.config.image_size)
-                spectrogram_datapoint = {
-                    "label":classification,
-                    "data":transformed_mel_spectrogram,
-                    "patient_id": patient_id
-                }
-                self.spectrogram_dataset.get('dataset').get(split.lower()).append(spectrogram_datapoint)
+                sample['signal'] = transformed_mel_spectrogram
+                self.spectrogram_dataset.get('dataset').get(split.lower()).append(sample)
 
     @staticmethod
     def _transform_signal_into_image(signal_data:np.ndarray, size:tuple):
@@ -114,17 +115,11 @@ class Processor:
         img_resized = transforms.Resize(size)(img_original)
         return np.array(img_resized)
 
-    def _load_segments_from_npz(self, npz_file) -> list:
-        """
-        Load npz files and return labels, values as tuples.
-        :returns: list
-        """
-        load_path = os.path.join(self.config.npz_path, npz_file)
-        loaded = np.load(load_path, allow_pickle=True)
-        labels = loaded['labels']
-        arrays = [loaded[f"array_{i}"] for i in range(len(labels))]
-        data = list(zip(labels, arrays))
-        return data
+    def _load_segments_from_pickle(self, pickle_file):
+        load_path = os.path.join(self.config.pickle_path, pickle_file)
+        with open(load_path, 'rb') as file:
+            data = pickle.load(file)
+            return data
 
     def _get_audio_features(self, signal_array:list):
         y = np.array(signal_array)
@@ -137,28 +132,22 @@ class Processor:
         return mel_spectrogram
 
     def _check_folder_contains_files(self):
-        return len(os.listdir(self.config.npz_path)) > 0
+        return len(os.listdir(self.config.pickle_path)) > 0
 
     def _shuffle_and_split(self) -> None:
         # calculate train val test split indices
-        number_of_samples = len(self.signal_dictionary)
+        number_of_samples = len(self.signal_list)
         assert number_of_samples > 0, "No samples found."
         train_index = int(np.round(number_of_samples * self.config.train_size))
         val_index = int(np.round(number_of_samples) * (1 - self.config.train_size) / 2) + train_index
 
         # load and shuffle signals
-        signal_data = list(self.signal_dictionary.items())
-        random.shuffle(signal_data)
+        random.shuffle(self.signal_list)
 
         # create datasets
-        train_signals = signal_data[:train_index]
-        val_signals = signal_data[train_index:val_index]
-        test_signals = signal_data[val_index:]
-
-        # return dictionaries
-        self.train_signals = {key: value for key, value in train_signals}
-        self.val_signals = {key: value for key, value in val_signals}
-        self.test_signals = {key:value for key, value in test_signals}
+        self.train_signals = self.signal_list[:train_index]
+        self.val_signals = self.signal_list[train_index:val_index]
+        self.test_signals = self.signal_list[val_index:]
 
     def _load_and_chunk_ambient_wav_files(self):
         ambient_files = os.listdir(self.config.ambient_noise_path)

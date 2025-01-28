@@ -18,7 +18,7 @@ overrides = {
 config = Config(
     classes=CLASSES,
     download_files=False,
-    extract_signals=False,
+    extract_signals=True,
     process_signals=True,
     serialize_signals=True,
     overrides=overrides,
@@ -35,4 +35,5 @@ pre = DataPreprocessor(
     serializer,
     config)
 
-pre.run()
+if __name__ == "__main__":
+    pre.run()

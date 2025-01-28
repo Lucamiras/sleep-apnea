@@ -2,7 +2,7 @@
 *_experiments
 *notes
 example.py
-main.py
+train_model.py
 downloadlinks.txt
 *__pycache__
 utils/__pycache__

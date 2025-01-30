@@ -1,3 +1,4 @@
+import argparse
 from src.data_preprocessing.config import Config
 from src.data_preprocessing.downloader import Downloader
 from src.data_preprocessing.extractor import Extractor
@@ -36,4 +37,12 @@ pre = DataPreprocessor(
     config)
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '-d',
+        '--download',
+        action='store_true',
+        help='Set this flag if the EDF and RML files require downloading.'
+    )
+    args = parser.parse_args()
     pre.run()

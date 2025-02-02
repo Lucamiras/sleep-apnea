@@ -41,6 +41,7 @@ class Config:
 
     def __init__(self,
                  classes: dict,
+                 ids_to_process: list,
                  project_dir: str = 'data',
                  download_files: bool = False,
                  extract_signals: bool = True,
@@ -69,7 +70,7 @@ class Config:
 
         # Process signals
         self.process_signals = process_signals
-        self.ids_to_process = None
+        self.ids_to_process = ids_to_process
         self.augment_ratio = None
         self.image_size = (224, 224)
 

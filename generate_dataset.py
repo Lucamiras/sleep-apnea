@@ -1,38 +1,40 @@
+import os
+import json
 import argparse
-from argparse import ArgumentParser
-
 from src.data_preprocessing.config import Config
 from src.data_preprocessing.downloader import Downloader
 from src.data_preprocessing.extractor import Extractor
 from src.data_preprocessing.process import Processor
 from src.data_preprocessing.serializer import Serializer
 from src.data_preprocessing.pipeline import DataPreprocessor
-from src.utils.globals import (
-    CLASSES
-)
+from src.config.apnea_classes import apnea_classes
 
 def main(arguments):
     download = arguments.download
     extract = arguments.extract
     process = arguments.process
     serialize = arguments.serialize
+    overrides = {}
 
     if not arguments.acq_numbers:
         raise Exception("No acq_numbers provided.")
 
+    if not arguments.targets:
+        raise Exception("No targets provided. Provide a minimum of two classes.")
+
     if not (download or extract or process or serialize):
         raise Exception("No preprocessing steps selected. Select at least one preprocessing step.")
 
-    acq_numbers = arguments.acq_numbers.split(',')
+    acq_numbers = [acq_num.strip() for acq_num in arguments.acq_numbers.split(',')]
+    targets = set(target.strip() for target in arguments.targets.split(','))
+    classes_dictionary = {value: i for i, value in enumerate(apnea_classes & targets)}
 
-    overrides = {
-        "ids_to_process":acq_numbers,
-        "clip_length":30,
-        "new_sample_rate": 16_000
-    }
+    with open(os.path.join('src', 'config', 'override_config.json'), 'rb') as overrides_config:
+        overrides = json.loads(overrides_config.read())
 
     config = Config(
-        classes=CLASSES,
+        classes=classes_dictionary,
+        ids_to_process=acq_numbers,
         download_files=download,
         extract_signals=extract,
         process_signals=process,
@@ -51,7 +53,7 @@ def main(arguments):
         serializer,
         config)
 
-    #pre.run()
+    pre.run()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -80,9 +82,12 @@ if __name__ == "__main__":
         help='Set this flag if you want to pickle the dataset.'
     )
     parser.add_argument(
-        '-a',
         '--acq_numbers',
         help='Add list of acq numbers for all patients to include, using the format \"\'00001234\', \'00002345\'\" (\" str, str \".'
+    )
+    parser.add_argument(
+        '--targets',
+        help='Provide a string of apnea types. Allowed types are NoApnea, Hypopnea, ObstructiveApnea, MixedApnea, CentralApnea.'
     )
     args = parser.parse_args()
     main(args)

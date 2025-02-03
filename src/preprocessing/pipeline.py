@@ -1,8 +1,8 @@
-from src.data_preprocessing.config import Config
-from src.data_preprocessing.downloader import Downloader
-from src.data_preprocessing.extractor import Extractor
-from src.data_preprocessing.process import Processor
-from src.data_preprocessing.serializer import Serializer
+from src.preprocessing.config import Config
+from src.preprocessing.downloader import Downloader
+from src.preprocessing.extractor import Extractor
+from src.preprocessing.process import Processor
+from src.preprocessing.serializer import Serializer
 
 
 class DataPreprocessor:

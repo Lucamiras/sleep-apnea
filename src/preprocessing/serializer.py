@@ -1,7 +1,7 @@
 import os
 import pickle
 import shutil
-from src.data_preprocessing.config import Config
+from src.preprocessing.config import Config
 
 
 class Serializer:

@@ -71,12 +71,10 @@ class Config:
         # Process signals
         self.process_signals = process_signals
         self.ids_to_process = ids_to_process
-        self.augment_ratio = None
         self.image_size = (224, 224)
 
         # Serialize signals
         self.serialize_signals = serialize_signals
-        self.dataset_file_name = 'dataset.pickle'
         self.train_size = 0.8
 
         # Paths

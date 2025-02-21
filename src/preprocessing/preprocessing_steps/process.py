@@ -9,7 +9,7 @@ import librosa.feature
 import random
 from scipy.io import wavfile
 from scipy.signal import resample
-from src.preprocessing.config import Config
+from src.preprocessing.preprocessing_steps.config import Config
 
 
 class Processor:

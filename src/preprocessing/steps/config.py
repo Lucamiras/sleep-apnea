@@ -66,12 +66,14 @@ class Config:
         self.sample_rate = 48_000
         self.new_sample_rate = None
         self.clip_length = 30
+        self.clip_overlap = 15
         self.n_mels = 128
 
         # Process signals
         self.process_signals = process_signals
         self.ids_to_process = ids_to_process
         self.image_size = (224, 224)
+        self.dataset_file_name = 'file'
 
         # Serialize signals
         self.serialize_signals = serialize_signals

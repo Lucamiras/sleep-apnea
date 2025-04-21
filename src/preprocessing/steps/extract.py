@@ -6,6 +6,7 @@ import pyedflib
 import numpy as np
 import xml.dom.minidom
 from scipy.signal import resample
+from typing import List, Union, Tuple, Any, Dict
 
 
 class Extractor:
@@ -49,7 +50,7 @@ class Extractor:
 
         for patient_id in patient_ids_to_process:
             ## get label dictionary
-            self._create_sequential_label_dictionary(patient_id)
+            self._create_dominant_label_dictionary(patient_id)
             ## create segments
             self._get_edf_segments_from_labels(patient_id)
             ## saves as pickle
@@ -156,6 +157,88 @@ class Extractor:
             full_readout = self._downsample(full_readout)
 
         return full_readout
+
+    @staticmethod
+    def calculate_overlap_duration(ann_start:float, ann_end:float, seg_start:float, seg_end:float) -> float:
+        """
+        Calculate the duration of overlap between two time intervals
+        """
+        overlap_start = max(ann_start, seg_start)
+        overlap_end = min(ann_end, seg_end)
+        return max(0.0, overlap_end - overlap_start)
+
+    def find_dominant_label(self, segment_start:float, segment_end:float, annotations: List[dict]) -> str:
+        """
+        Get the dominant label for a segment based on the annotation
+        """
+        max_overlap = 0.0
+        min_overlap = 1.0
+        dominant_label = 'normal'
+
+        for ann in annotations:
+            overlap_duration = self.calculate_overlap_duration(ann['start'], ann['end'], segment_start, segment_end)
+            if overlap_duration > max_overlap:
+                max_overlap = overlap_duration
+                dominant_label = ann['type']
+            if max_overlap < min_overlap:
+                dominant_label = 'normal'
+
+        return dominant_label
+
+    def _create_annotations(self, events:Any) -> List[Dict[str, Union[float, Any]]]:
+        annotations = []
+        for event in events:
+            if event.getAttribute('Type') in self.config.classes.keys():
+                event_start = float(event.getAttribute('Start'))
+                event_type = event.getAttribute('Type')
+                annotations.append(
+                    {
+                        'start': event_start,
+                        'end': event_start + float(self.config.clip_length),
+                        'type': event_type
+                    }
+                )
+        return annotations
+
+    @staticmethod
+    def _create_segment_list(total_duration:float, segment_duration:float, clip_overlap:float) -> Union[List[Dict[str, float]]]:
+        segments = []
+        current_time = 0.0
+        while current_time + segment_duration <= total_duration:
+            segments.append({
+                'start': current_time,
+                'end': current_time + segment_duration,
+            })
+            current_time += clip_overlap
+        return segments
+
+    def _create_dominant_label_dictionary(self, rml_folder:str) -> None:
+        file = os.listdir(os.path.join(self.config.rml_preprocess_path, rml_folder))[0]
+        label_path = os.path.join(self.config.rml_preprocess_path, rml_folder, file)
+        domtree = xml.dom.minidom.parse(label_path)
+        group = domtree.documentElement
+        events = group.getElementsByTagName('Event')
+        total_duration = float(group.getElementsByTagName('Duration')[0].firstChild.nodeValue)
+        gender = group.getElementsByTagName('Gender')[0].firstChild.nodeValue
+        segments = self._create_segment_list(total_duration=total_duration,
+                                                  segment_duration=self.config.clip_length,
+                                                  clip_overlap=self.config.clip_overlap)
+        annotations = self._create_annotations(events=events)
+        apnea_events = {
+            "acq_number": str(rml_folder),
+            "gender": gender,
+            "events": []
+        }
+        for i, segment in enumerate(segments):
+            dominant_label = self.find_dominant_label(segment['start'], segment['end'], annotations)
+            apnea_events['events'].append({
+                "start": segment['start'],
+                "end": segment['end'],
+                "label": dominant_label,
+                "signal": []
+            })
+        print(f"Found {len(apnea_events['events'])} events and non-events for {rml_folder}.")
+        self.label_dictionary[rml_folder] = apnea_events
 
     def _create_sequential_label_dictionary(self, rml_folder:str) -> None:
         """

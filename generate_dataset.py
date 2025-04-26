@@ -17,13 +17,13 @@ def main(arguments):
     overrides = {}
 
     if not arguments.acq_numbers:
-        raise Exception("No acq_numbers provided.")
+        raise ValueError("No acq_numbers provided.")
 
     if not arguments.targets:
-        raise Exception("No targets provided. Provide a minimum of two classes.")
+        raise ValueError("No targets provided. Provide a minimum of two classes.")
 
     if not (download or extract or process or serialize):
-        raise Exception("No preprocessing steps selected. Select at least one preprocessing step.")
+        raise ValueError("No preprocessing steps selected. Select at least one preprocessing step.")
 
     acq_numbers = [acq_num.strip() for acq_num in arguments.acq_numbers.split(',')]
     targets = set(target.strip() for target in arguments.targets.split(','))

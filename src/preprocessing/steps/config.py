@@ -41,7 +41,7 @@ class Config:
 
     def __init__(self,
                  classes: dict,
-                 ids_to_process: list,
+                 ids_to_process: list = None,
                  project_dir: str = 'data',
                  download_files: bool = False,
                  extract_signals: bool = True,

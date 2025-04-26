@@ -6,6 +6,7 @@ from torchvision import transforms
 from tqdm import tqdm
 import librosa
 import librosa.feature
+from typing import Union, Dict
 from src.preprocessing.steps.config import Config
 from src.custom_dataclasses.apnea_event import ApneaEvent
 
@@ -38,13 +39,13 @@ class Processor:
         for patient_id in patient_ids_to_process:
             self._load_signals_for_patient_id(patient_id)
 
-    def _load_or_create_dataset(self):
+    def _load_or_create_dataset(self) -> Dict[str, Union[int, Dict[str, list]]]:
         dataset_present = self.config.dataset_file_name in os.listdir(self.config.signals_path)
         if dataset_present:
             existing_dataset = pickle.load(open(os.path.join(self.config.signals_path,
                                                              self.config.dataset_file_name), "rb"))
             return existing_dataset
-        if not dataset_present:
+        else:
             new_dataset = {
                 "clip_length": self.config.clip_length,
                 "dataset": {
@@ -84,18 +85,18 @@ class Processor:
             pickle.dump(processed_data, file, protocol=pickle.HIGHEST_PROTOCOL)
 
     @staticmethod
-    def _transform_signal_into_image(signal_data:np.ndarray, size:tuple):
+    def _transform_signal_into_image(signal_data:np.ndarray, size:tuple) -> np.ndarray:
         img_original = Image.fromarray(signal_data.astype(np.uint8))
         img_resized = transforms.Resize(size)(img_original)
         return np.array(img_resized)
 
-    def _load_segments_from_pickle(self, pickle_file):
+    def _load_segments_from_pickle(self, pickle_file) -> np.ndarray:
         load_path = os.path.join(self.config.pickle_path, pickle_file)
         with open(load_path, 'rb') as file:
             data = pickle.load(file)
             return data
 
-    def _get_audio_features(self, signal_array:list):
+    def _get_audio_features(self, signal_array:list) -> np.ndarray:
         y = np.array(signal_array)
         mel_spectrogram = librosa.feature.melspectrogram(
             y=y,
@@ -105,5 +106,5 @@ class Processor:
         mel_spectrogram = librosa.power_to_db(mel_spectrogram, ref=np.max)
         return mel_spectrogram
 
-    def _check_folder_contains_files(self):
+    def _check_folder_contains_files(self) -> int:
         return len(os.listdir(self.config.pickle_path)) > 0

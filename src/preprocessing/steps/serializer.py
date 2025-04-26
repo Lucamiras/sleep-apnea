@@ -12,7 +12,7 @@ class Serializer:
         self.config = config
         self.dataset = dataset
 
-    def serialize(self):
+    def serialize(self) -> None:
         dataset_file_path = os.path.join(self.config.signals_path, self.config.dataset_file_name)
         retired_file_path = os.path.join(self.config.retired_path, self.config.dataset_file_name)
         if self.config.dataset_file_name in os.listdir(self.config.signals_path):

@@ -1,0 +1,33 @@
+name: "sleep-apnea-dataset-generation"
+version: "1.0.0"
+steps:
+  # - "download"
+  - "extract"
+  - "process"
+
+data:
+  ids:
+    - "00000995"
+  targets:
+    - "Hypopnea"
+    - "ObstructiveApnea"
+
+download:
+  mode: "local" #local or gcloud
+  edf_urls: null
+  rml_urls: null
+  catalog_file: "file_catalog.txt"
+
+audio:
+  data_channels: "Mic"
+  edf_step_size: 10000000
+  sample_rate: 48000
+  clip_length: 30
+  clip_overlap: 15
+  n_mels: 128
+  ids_to_process: null
+  image_size: 224
+
+paths:
+  root: "data"
+  dataset_file_name: "data"

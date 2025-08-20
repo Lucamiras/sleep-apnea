@@ -13,9 +13,9 @@ class Serializer:
         self.dataset = dataset
 
     def serialize(self) -> None:
-        dataset_file_path = os.path.join(self.config.signals_path, self.config.dataset_file_name)
-        retired_file_path = os.path.join(self.config.retired_path, self.config.dataset_file_name)
-        if self.config.dataset_file_name in os.listdir(self.config.signals_path):
+        dataset_file_path = os.path.join(self.config.paths.signals_path, self.config.paths.dataset_file_name)
+        retired_file_path = os.path.join(self.config.paths.retired_path, self.config.paths.dataset_file_name)
+        if self.config.paths.dataset_file_name in os.listdir(self.config.paths.signals_path):
             shutil.move(src=dataset_file_path, dst=retired_file_path)
         with open(dataset_file_path, "wb") as file:
             pickle.dump(self.dataset, file)

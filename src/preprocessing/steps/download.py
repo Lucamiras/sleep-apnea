@@ -3,6 +3,7 @@ import requests
 import numpy as np
 from tqdm import tqdm
 import re
+from src.preprocessing.steps.config import Config
 
 
 class Downloader:
@@ -16,7 +17,7 @@ class Downloader:
         download_data():
             Downloads files from URLs specified in the config.
     """
-    def __init__(self, config):
+    def __init__(self, config:Config):
         """
         Initializes the Downloader with the given configuration.
 
@@ -33,7 +34,8 @@ class Downloader:
             :returns: A tuple with two lists (RML and EDF URLs) as well as a list of unique IDs.
         """
         np.random.seed(seed)
-        with open(self.config.catalog_filepath, 'r') as f:
+        catalog_file_path = os.path.join(self.config.paths.root, self.config.download.catalog_file)
+        with open(catalog_file_path, 'r') as f:
             content = f.read()
         urls = content.split('\n')
         ids = list(x.split('/')[1] for x in set(re.findall(pattern=r'clean/0000[0-9]{4}', string=content)))
@@ -55,10 +57,10 @@ class Downloader:
         Returns:
             None
         """
-        for url in tqdm(self.config.edf_urls):
+        for url in tqdm(self.config.download.edf_urls):
             response = requests.get(url)
             file_name = url[-28:].replace('%5B', '[').replace('%5D', ']')
-            file_path = os.path.join(self.config.edf_download_path, file_name)
+            file_path = os.path.join(self.config.paths.edf_download_path, file_name)
             if response.status_code == 200:
                 with open(file_path, "wb") as file:
                     file.write(response.content)
@@ -66,10 +68,10 @@ class Downloader:
             else:
                 print(f"Failed to download the file. Status code: {response.status_code}")
 
-        for url in tqdm(self.config.rml_urls):
+        for url in tqdm(self.config.download.rml_urls):
             response = requests.get(url)
             file_name = url[-19:].replace('%5B', '[').replace('%5D', ']')
-            file_path = os.path.join(self.config.rml_download_path, file_name)
+            file_path = os.path.join(self.config.paths.rml_download_path, file_name)
             if response.status_code == 200:
                 with open(file_path, "wb") as file:
                     file.write(response.content)
@@ -77,8 +79,8 @@ class Downloader:
             else:
                 print(f"Failed to download the file. Status code: {response.status_code}")
 
-        if len(self.config.edf_urls) == len(os.listdir(self.config.edf_download_path)):
+        if len(self.config.download.edf_urls) == len(os.listdir(self.config.paths.edf_download_path)):
             print("Successfully downloaded EDF files.")
 
-        if len(self.config.rml_urls) == len(os.listdir(self.config.rml_download_path)):
+        if len(self.config.download.rml_urls) == len(os.listdir(self.config.paths.rml_download_path)):
             print("Successfully downloaded RML files.")

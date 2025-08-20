@@ -1,121 +1,83 @@
+import logging
 import os
+from pathlib import Path
+from pydantic import BaseModel, Field, ValidationError
+from typing import List, Union
+import yaml
 
 
-class Config:
-    """
-    Configuration class for managing all settings and paths required by the data processing pipeline.
+logging.basicConfig(level=logging.INFO)
 
-    Attributes:
-        project_dir (str): Root directory where all preprocessing will take place.
-        classes (dict): Dictionary with class names and integer values. Example: {"NoApnea":0, "ObstructiveApnea":1}.
-        download_files (bool): Specify if the preprocessor should include the downloading step.
-        extract_signals (bool): Specify if the preprocessor should include the extraction step.
-        process_signals (bool): Specify if the preprocessor should include the processing step.
-        serialize_signals (bool): Specify if the preprocessor should include the serialization step.
-        overrides (dict): Overrides of any other parameters can be changed via the overrides method by passing a
-        dictionary with attribute names as keys and parameters as values.
-        edf_urls (list): A list with EDF download urls. Default: None
-        rml_urls (list): A list with RML download urls. Default: None
-        data_channels (str): The data channel to extract from the EDF file. Default: 'Mic'
-        edf_step_size (int): Amount of signals to process during EDF extraction. This is necessary as to not overfill
-        memory. Default: 10_000_000
-        sample_rate (int): The appropriate sample rate for the signal. Default: 48_000
-        clip_length (int): Length of extracted samples that will be used for training. Default: 30
-        ids_to_process (list): List of IDs in case not all files from download / preprocess folders should be considered.
-        Default: None
-        train_size (float): How much of the total samples should be considered for training. Default: 0.8
-        edf_download_path (str): Path in root folder.
-        rml_download_path (str): Path in root folder.
-        edf_preprocess_path (str): Path in root folder.
-        rml_preprocess_path (str): Path in root folder.
-        pickle_path (str): Path in root folder.
-        audio_path (str): Path in root folder.
-        spectrogram_path (str): Path in root folder.
-        signals_path (str): Path in root folder.
-        retired_path (str): Path in root folder.
+class DataConfig(BaseModel):
+    ids: List[str] = []
+    targets: List[str] = ["ObstructiveApnea", "Hypopnea", "MixedApnea", "CentralApnea"]
 
-    Methods:
-        _create_directory_structure():
-            Creates the folders in the root directory specified in the project_dir attribute.
-    """
+class DownloadConfig(BaseModel):
+    mode: str = "local"
+    edf_urls: Union[List[str], None]
+    rml_urls: Union[List[str], None]
+    catalog_file: str
 
-    def __init__(self,
-                 classes: dict,
-                 ids_to_process: list = None,
-                 project_dir: str = 'data',
-                 download_files: bool = False,
-                 extract_signals: bool = True,
-                 process_signals: bool = True,
-                 serialize_signals: bool = True,
-                 overrides: dict = None):
+class AudioConfig(BaseModel):
+    data_channels: str = "Mic"
+    edf_step_size: int
+    sample_rate: int
+    clip_length: int
+    clip_overlap: int
+    n_mels: int
+    ids_to_process: Union[List[str], None] = None
+    new_sample_rate: int = None
+    image_size: int
 
-        # Basic inputs
-        self.project_dir = project_dir
-        self.classes = classes
 
-        # Download config
-        self.download_files = download_files
-        self.catalog_filepath = os.path.join(self.project_dir, 'file_catalog.txt')
-        self.edf_urls = None
-        self.rml_urls = None
+class PathsConfig(BaseModel):
+    root: str = 'data'
+    dataset_file_name: str = 'dataset.py'
+    edf_download_path: str = Field(default=None)
+    rml_download_path: str = Field(default=None)
+    ambient_noise_path: str = Field(default=None)
+    edf_preprocess_path: str = Field(default=None)
+    rml_preprocess_path: str = Field(default=None)
+    pickle_path: str = Field(default=None)
+    audio_path: str = Field(default=None)
+    spectrogram_path: str = Field(default=None)
+    signals_path: str = Field(default=None)
+    retired_path: str = Field(default=None)
 
-        # Extract signals
-        self.extract_signals = extract_signals
-        self.data_channels = 'Mic'
-        self.edf_step_size = 10_000_000
-        self.sample_rate = 48_000
-        self.new_sample_rate = None
-        self.clip_length = 30
-        self.clip_overlap = 15
-        self.n_mels = 128
+    def _set_paths(self):
+        base_path = Path(self.root)
+        self.edf_download_path = os.path.join(base_path, 'downloads', 'edf')
+        self.rml_download_path = os.path.join(base_path, 'downloads', 'rml')
+        self.ambient_noise_path = os.path.join(base_path, 'downloads', 'ambient')
+        self.edf_preprocess_path = os.path.join(base_path, 'preprocess', 'edf')
+        self.rml_preprocess_path = os.path.join(base_path, 'preprocess', 'rml')
+        self.pickle_path = os.path.join(base_path, 'preprocess', 'pickle')
+        self.audio_path = os.path.join(base_path, 'processed', 'audio')
+        self.spectrogram_path = os.path.join(base_path, 'processed', 'spectrogram')
+        self.signals_path = os.path.join(base_path, 'processed', 'signals')
+        self.retired_path = os.path.join(base_path, 'retired')
 
-        # Process signals
-        self.process_signals = process_signals
-        self.ids_to_process = ids_to_process
-        self.image_size = (224, 224)
-        self.dataset_file_name = 'file'
+    def __init__(self, **data):
+        super().__init__(**data)
+        self._set_paths()
 
-        # Serialize signals
-        self.serialize_signals = serialize_signals
-        self.train_size = 0.8
+class Config(BaseModel):
+    name: str
+    version: str
+    steps: List[str]
+    data: DataConfig
+    download: DownloadConfig
+    audio: AudioConfig
+    paths: PathsConfig
 
-        # Paths
-        self.edf_download_path = os.path.join(self.project_dir, 'downloads', 'edf')
-        self.rml_download_path = os.path.join(self.project_dir, 'downloads', 'rml')
-        self.ambient_noise_path = os.path.join(self.project_dir, 'downloads', 'ambient')
-        self.edf_preprocess_path = os.path.join(self.project_dir, 'preprocess', 'edf')
-        self.rml_preprocess_path = os.path.join(self.project_dir, 'preprocess', 'rml')
-        self.pickle_path = os.path.join(self.project_dir, 'preprocess', 'pickle')
-        self.audio_path = os.path.join(self.project_dir, 'processed', 'audio')
-        self.spectrogram_path = os.path.join(self.project_dir, 'processed', 'spectrogram')
-        self.signals_path = os.path.join(self.project_dir, 'processed', 'signals')
-        self.retired_path = os.path.join(self.project_dir, 'retired')
+def load_config(config_file:str) -> Config:
+    with open(config_file, 'r') as file:
+        config = yaml.safe_load(file)
+    try:
+        return Config(**config)
+    except ValidationError as e:
+        logging.error("Pipeline config could not be initialized due to validation error:")
+        logging.error(e)
+        raise
 
-        if overrides:
-            for key, value in overrides.items():
-                setattr(self, key, value)
 
-        self._catch_errors()
-        self._create_directory_structure()
-
-    def _catch_errors(self) -> None:
-
-        if self.new_sample_rate:
-            if not isinstance(self.new_sample_rate, int):
-                raise TypeError("new_sample_rate must be of type Integer")
-            assert self.new_sample_rate < self.sample_rate, "new_sample_rate must be smaller than sample_rate"
-
-    def _create_directory_structure(self) -> None:
-        """
-        Creates directory structure necessary to download and process data.
-        returns: None
-        """
-        os.makedirs(self.edf_download_path, exist_ok=True)
-        os.makedirs(self.rml_download_path, exist_ok=True)
-        os.makedirs(self.edf_preprocess_path, exist_ok=True)
-        os.makedirs(self.rml_preprocess_path, exist_ok=True)
-        os.makedirs(self.pickle_path, exist_ok=True)
-        os.makedirs(self.audio_path, exist_ok=True)
-        os.makedirs(self.spectrogram_path, exist_ok=True)
-        os.makedirs(self.signals_path, exist_ok=True)
-        os.makedirs(self.retired_path, exist_ok=True)

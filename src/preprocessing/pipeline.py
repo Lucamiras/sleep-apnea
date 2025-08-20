@@ -1,6 +1,6 @@
 import os
 from src.preprocessing.steps.config import Config
-from src.preprocessing.steps.download import Downloader
+from src.preprocessing.steps.download import LocalDownloader, GCSDownloader
 from src.preprocessing.steps.extract import Extractor
 from src.preprocessing.steps.process import Processor
 
@@ -19,7 +19,10 @@ class DataPreprocessor:
 
         if "download" in self.config.steps:
             # This will download any files specified in the EDF_URLS and RML_URLS from the Config class
-            self.downloader = Downloader(self.config)
+            if self.config.download.mode == "local":
+                self.downloader = LocalDownloader(self.config)
+            if self.config.download.mode == "gcs":
+                self.downloader = GCSDownloader(self.config)
             self.downloader.download_data()
 
         if "extract" in self.config.steps:

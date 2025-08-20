@@ -13,7 +13,8 @@ data:
     - "ObstructiveApnea"
 
 download:
-  mode: "local" #local or gcloud
+  mode: "local" #local or gcs
+  bucket_name: null
   edf_urls: null
   rml_urls: null
   catalog_file: "file_catalog.txt"

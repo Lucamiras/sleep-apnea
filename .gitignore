@@ -15,3 +15,4 @@ _experiments/app_v1
 webapp
 app/model
 test
+.env

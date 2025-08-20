@@ -17,6 +17,7 @@ class DownloadConfig(BaseModel):
     edf_urls: Union[List[str], None]
     rml_urls: Union[List[str], None]
     catalog_file: str
+    bucket_name: Union[str, None]
 
 class AudioConfig(BaseModel):
     data_channels: str = "Mic"

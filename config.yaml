@@ -25,7 +25,8 @@ audio:
   clip_length: 30
   clip_overlap: 15
   n_mels: 128
-  ids_to_process: null
+  ids_to_process:
+    - "00000995"
   image_size: 224
 
 paths:

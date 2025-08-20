@@ -6,7 +6,6 @@ from torchvision import transforms
 from tqdm import tqdm
 import librosa
 import librosa.feature
-from typing import Union, Dict
 from src.preprocessing.steps.config import Config
 from src.apnea_events.apnea_event import ApneaEvent
 
@@ -20,7 +19,6 @@ class Processor:
         self.config = config
         self.sample_rate = self.config.audio.new_sample_rate if self.config.audio.new_sample_rate else \
             self.config.audio.sample_rate
-        self.spectrogram_dataset = self._load_or_create_dataset()
 
     def process(self):
         print("PROCESSOR -- Starting processing")
@@ -39,23 +37,6 @@ class Processor:
         # Create spectrograms
         for patient_id in patient_ids_to_process:
             self._load_signals_for_patient_id(patient_id)
-
-    def _load_or_create_dataset(self) -> Dict[str, Union[int, Dict[str, list]]]:
-        dataset_present = self.config.paths.dataset_file_name in os.listdir(self.config.paths.signals_path)
-        if dataset_present:
-            existing_dataset = pickle.load(open(os.path.join(self.config.paths.signals_path,
-                                                             self.config.paths.dataset_file_name), "rb"))
-            return existing_dataset
-        else:
-            new_dataset = {
-                "clip_length": self.config.audio.clip_length,
-                "dataset": {
-                    "train": [],
-                    "val": [],
-                    "test": []
-                }
-            }
-            return new_dataset
 
     def _load_signals_for_patient_id(self, patient_id:str) -> None:
         pickle_file = f"{patient_id}.pickle"
